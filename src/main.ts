@@ -1,7 +1,7 @@
 import './style.css';
 import { SUPPORTED_LANGUAGES, t } from './i18n/translations';
 import { MapController } from './map/mapController';
-import { fetchNearbyPois, PoiFilterKind, reverseGeocode, searchPlaces } from './services/geocoding';
+import { fetchNearbyPois, parseCoordinatesInput, PoiFilterKind, reverseGeocode, searchPlaces } from './services/geocoding';
 import { DEFAULT_FALLBACK_FIX, GpsWatcher, requestInitialGpsFix } from './services/location';
 import { fetchRoadSignsAround, renderRoadSignSvg } from './services/roadSigns';
 import { calculateRoutes, computeBearing, distanceToRouteMeters, haversineMeters } from './services/routing';
@@ -30,7 +30,7 @@ import {
   TruckPresetId,
 } from './types/navigation';
 
-type ModalKind = null | 'vehicle' | 'vehicles' | 'saved' | 'settings';
+type ModalKind = null | 'vehicle' | 'vehicles' | 'saved' | 'settings' | 'coords';
 
 class BestGpsApp {
   private root: HTMLElement;
@@ -268,6 +268,9 @@ class BestGpsApp {
         </div>
 
         <div class="chips-strip">
+          <button class="pill-chip" id="btn-open-coords">
+            📍 ${bundle.coordsChip}
+          </button>
           <button class="pill-chip ${this.settings.mode === 'truck' ? 'highlight' : ''}" id="btn-open-vehicles">
             🚛 ${bundle.vehiclesTab} (${this.settings.savedVehicles.length})${this.settings.mode === 'truck' ? ` • ${truckSummary}` : ''}
           </button>
@@ -1317,6 +1320,18 @@ class BestGpsApp {
         void this.performSearch(q);
       }, 320);
     });
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const q = searchInput.value.trim();
+      const parsed = parseCoordinatesInput(q);
+      if (parsed) {
+        e.preventDefault();
+        void this.handleCoordinateAction(parsed.lat, parsed.lon, 'navigate');
+      } else if (this.searchResults.length > 0) {
+        e.preventDefault();
+        this.selectDestination(this.searchResults[0]);
+      }
+    });
 
     this.root.querySelector('#btn-clear-dest')?.addEventListener('click', () => {
       this.destination = null;
@@ -1352,6 +1367,10 @@ class BestGpsApp {
       this.renderUi();
     });
 
+    this.root.querySelector('#btn-open-coords')?.addEventListener('click', () => {
+      this.modal = 'coords';
+      this.renderModal();
+    });
     this.root.querySelector('#btn-open-vehicles')?.addEventListener('click', () => {
       this.editingVehicle = null;
       this.modal = 'vehicles';
@@ -1519,6 +1538,52 @@ class BestGpsApp {
       this.showToast(t(this.settings.language).noRouteFound);
     } finally {
       this.isRouting = false;
+      this.renderUi();
+    }
+  }
+
+  private async handleCoordinateAction(lat: number, lon: number, action: 'show' | 'navigate'): Promise<void> {
+    const coordLabel = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    const initialPlace: GeocodedPlace = {
+      id: `coord-${Date.now()}`,
+      name: `📍 ${coordLabel}`,
+      subtitle: 'GPS',
+      lat,
+      lon,
+      category: 'coordinates',
+    };
+    this.modal = null;
+    this.searchOpen = false;
+
+    const enrichSubtitle = async (): Promise<string | null> => {
+      const resolved = await reverseGeocode(lat, lon, this.settings.language);
+      if (!resolved.name && !resolved.subtitle) return null;
+      return resolved.name && resolved.name !== coordLabel
+        ? `${resolved.name}${resolved.subtitle ? `, ${resolved.subtitle}` : ''}`
+        : resolved.subtitle || 'GPS';
+    };
+
+    if (action === 'navigate') {
+      this.selectDestination(initialPlace);
+      const sub = await enrichSubtitle();
+      if (sub && this.destination && this.destination.id === initialPlace.id) {
+        this.destination = { ...initialPlace, subtitle: sub };
+        this.renderUi();
+      }
+      return;
+    }
+
+    this.routes = [];
+    this.destination = null;
+    this.mapCtrl?.renderRoutes([], 0);
+    this.tappedPlace = initialPlace;
+    this.mapCtrl?.setDestinationPin({ lat, lon });
+    this.mapCtrl?.flyTo({ lat, lon }, 15, 0);
+    this.renderUi();
+
+    const sub = await enrichSubtitle();
+    if (sub && this.tappedPlace && this.tappedPlace.id === initialPlace.id) {
+      this.tappedPlace = { ...initialPlace, subtitle: sub };
       this.renderUi();
     }
   }
@@ -2201,6 +2266,91 @@ class BestGpsApp {
         this.modal = null;
         this.renderUi();
         if (this.destination) void this.computeActiveRoute();
+      });
+    } else if (this.modal === 'coords') {
+      container.innerHTML = `
+        <div class="modal-backdrop" id="modal-bg">
+          <div class="modal-card">
+            <div class="modal-header">
+              <h2>📍 ${bundle.coordsTitle}</h2>
+              <button class="round-icon-btn" id="modal-close">✕</button>
+            </div>
+            <div style="font-size:12px;color:var(--muted);">${bundle.coordsHint}</div>
+            <label class="field">${bundle.coordsQuickLabel}
+              <input id="coords-combined" type="text" placeholder="${bundle.coordsQuickPlaceholder}">
+            </label>
+            <div class="form-grid">
+              <label class="field">${bundle.latitudeLabel}
+                <input id="coords-lat" type="text" inputmode="decimal" placeholder="50.8503">
+              </label>
+              <label class="field">${bundle.longitudeLabel}
+                <input id="coords-lon" type="text" inputmode="decimal" placeholder="4.3517">
+              </label>
+            </div>
+            <button type="button" class="pill-chip" id="btn-coords-mygps" style="align-self:flex-start;">
+              🎯 ${bundle.fromMyLocation}: ${this.currentFix.lat.toFixed(5)}, ${this.currentFix.lon.toFixed(5)}
+            </button>
+            <div class="btn-row">
+              <button type="button" class="secondary-btn" id="btn-coords-show" style="flex:1;">🗺️ ${bundle.showOnMapBtn}</button>
+              <button type="button" class="primary-btn" id="btn-coords-nav" style="flex:1;">🧭 ${bundle.setDestination}</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const combinedInput = container.querySelector<HTMLInputElement>('#coords-combined');
+      const latInput = container.querySelector<HTMLInputElement>('#coords-lat');
+      const lonInput = container.querySelector<HTMLInputElement>('#coords-lon');
+
+      combinedInput?.addEventListener('input', () => {
+        const parsed = parseCoordinatesInput(combinedInput.value);
+        if (parsed && latInput && lonInput) {
+          latInput.value = parsed.lat.toFixed(6);
+          lonInput.value = parsed.lon.toFixed(6);
+        }
+      });
+
+      container.querySelector('#btn-coords-mygps')?.addEventListener('click', () => {
+        if (latInput) latInput.value = this.currentFix.lat.toFixed(6);
+        if (lonInput) lonInput.value = this.currentFix.lon.toFixed(6);
+        if (combinedInput) {
+          combinedInput.value = `${this.currentFix.lat.toFixed(6)}, ${this.currentFix.lon.toFixed(6)}`;
+        }
+      });
+
+      const readCoords = (): { lat: number; lon: number } | null => {
+        const latRaw = latInput?.value.trim() ?? '';
+        const lonRaw = lonInput?.value.trim() ?? '';
+        if (latRaw !== '' && lonRaw !== '') {
+          const lat = Number(latRaw.replace(',', '.'));
+          const lon = Number(lonRaw.replace(',', '.'));
+          if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            return { lat, lon };
+          }
+          return null;
+        }
+        const combined = combinedInput?.value.trim() ?? '';
+        return combined ? parseCoordinatesInput(combined) : null;
+      };
+
+      const submitCoords = (action: 'show' | 'navigate'): void => {
+        const res = readCoords();
+        if (!res) {
+          this.showToast(bundle.invalidCoordsError);
+          return;
+        }
+        void this.handleCoordinateAction(res.lat, res.lon, action);
+      };
+
+      container.querySelector('#btn-coords-show')?.addEventListener('click', () => submitCoords('show'));
+      container.querySelector('#btn-coords-nav')?.addEventListener('click', () => submitCoords('navigate'));
+      [combinedInput, latInput, lonInput].forEach((inp) => {
+        inp?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            submitCoords('show');
+          }
+        });
       });
     }
 

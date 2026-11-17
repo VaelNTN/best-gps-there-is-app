@@ -134,11 +134,20 @@ export interface TranslationBundle {
   deleteLabel: string;
   avoidUnpaved: string;
   vehicleRoutingNote: string;
+  coordsChip: string;
+  coordsTitle: string;
+  coordsHint: string;
+  coordsQuickLabel: string;
+  coordsQuickPlaceholder: string;
+  latitudeLabel: string;
+  longitudeLabel: string;
+  showOnMapBtn: string;
+  invalidCoordsError: string;
 }
 
 const NL: TranslationBundle = {
   appTitle: 'Road Mapper',
-  searchPlaceholder: 'Waar wil je heen? (adres, stad, bedrijf...)',
+  searchPlaceholder: 'Waar wil je heen? (adres, stad, coördinaten...)',
   fromMyLocation: 'Vanaf mijn GPS-locatie',
   modes: {
     pedestrian: 'Te voet',
@@ -282,11 +291,20 @@ const NL: TranslationBundle = {
   deleteLabel: 'Verwijder',
   avoidUnpaved: 'Onverharde wegen vermijden',
   vehicleRoutingNote: 'Route & verkeersborden (hoogte, breedte, gewicht, aslast, lengte & ADR) houden direct rekening met dit voertuig.',
+  coordsChip: 'Coördinaten',
+  coordsTitle: 'Locatie via coördinaten',
+  coordsHint: 'Vul breedte- en lengtegraad in of plak coördinaten / Google Maps-link.',
+  coordsQuickLabel: 'Plak of typ in één keer (decimaal, DMS of link)',
+  coordsQuickPlaceholder: 'Bijv. 50.8503, 4.3517 of 50°51\'01"N 4°21\'06"E',
+  latitudeLabel: 'Breedtegraad / Latitude (-90..90)',
+  longitudeLabel: 'Lengtegraad / Longitude (-180..180)',
+  showOnMapBtn: 'Toon op kaart',
+  invalidCoordsError: 'Ongeldige coördinaten. Gebruik breedtegraad (-90..90) en lengtegraad (-180..180).',
 };
 
 const EN: TranslationBundle = {
   appTitle: 'Road Mapper',
-  searchPlaceholder: 'Where to? (address, city, company...)',
+  searchPlaceholder: 'Where to? (address, city, coordinates...)',
   fromMyLocation: 'From my GPS location',
   modes: {
     pedestrian: 'Walk',
@@ -430,11 +448,20 @@ const EN: TranslationBundle = {
   deleteLabel: 'Delete',
   avoidUnpaved: 'Avoid unpaved roads',
   vehicleRoutingNote: 'Routing & road sign warnings (height, width, weight, axle load, length & ADR) automatically use this vehicle.',
+  coordsChip: 'Coordinates',
+  coordsTitle: 'Find by coordinates',
+  coordsHint: 'Enter latitude & longitude or paste coordinates / a Google Maps link.',
+  coordsQuickLabel: 'Paste or type combined (decimal, DMS or link)',
+  coordsQuickPlaceholder: 'e.g. 50.8503, 4.3517 or 50°51\'01"N 4°21\'06"E',
+  latitudeLabel: 'Latitude (-90..90)',
+  longitudeLabel: 'Longitude (-180..180)',
+  showOnMapBtn: 'Show on map',
+  invalidCoordsError: 'Invalid coordinates. Use latitude (-90..90) and longitude (-180..180).',
 };
 
 const DE: TranslationBundle = {
   ...EN,
-  searchPlaceholder: 'Wohin möchtest du? (Adresse, Stadt, Firma...)',
+  searchPlaceholder: 'Wohin möchtest du? (Adresse, Stadt, Koordinaten...)',
   fromMyLocation: 'Von meinem GPS-Standort',
   modes: {
     pedestrian: 'Zu Fuß',
@@ -562,11 +589,20 @@ const DE: TranslationBundle = {
   deleteLabel: 'Löschen',
   avoidUnpaved: 'Unbefestigte Straßen meiden',
   vehicleRoutingNote: 'Route & Verkehrsschilder (Höhe, Breite, Gewicht, Achslast, Länge & ADR) berücksichtigen dieses Fahrzeug sofort.',
+  coordsChip: 'Koordinaten',
+  coordsTitle: 'Ort über Koordinaten',
+  coordsHint: 'Breiten- und Längengrad eingeben oder Koordinaten / Google-Maps-Link einfügen.',
+  coordsQuickLabel: 'Kombiniert einfügen/eingeben (Dezimal, DMS oder Link)',
+  coordsQuickPlaceholder: 'z.B. 52.5200, 13.4050 oder 52°31\'12"N 13°24\'18"E',
+  latitudeLabel: 'Breitengrad / Lat (-90..90)',
+  longitudeLabel: 'Längengrad / Lon (-180..180)',
+  showOnMapBtn: 'Auf Karte zeigen',
+  invalidCoordsError: 'Ungültige Koordinaten. Nutze Breite (-90..90) und Länge (-180..180).',
 };
 
 const FR: TranslationBundle = {
   ...EN,
-  searchPlaceholder: 'Où aller ? (adresse, ville, entreprise...)',
+  searchPlaceholder: 'Où aller ? (adresse, ville, coordonnées...)',
   fromMyLocation: 'Depuis ma position GPS',
   modes: {
     pedestrian: 'À pied',
@@ -671,11 +707,20 @@ const FR: TranslationBundle = {
   deleteLabel: 'Supprimer',
   avoidUnpaved: 'Éviter routes non revêtues',
   vehicleRoutingNote: 'L’itinéraire et les alertes panneaux (hauteur, largeur, poids, essieu, longueur, ADR) utilisent ce véhicule.',
+  coordsChip: 'Coordonnées',
+  coordsTitle: 'Lieu par coordonnées',
+  coordsHint: 'Saisissez latitude et longitude ou collez des coordonnées / un lien Google Maps.',
+  coordsQuickLabel: 'Coller ou saisir en une fois (décimal, DMS ou lien)',
+  coordsQuickPlaceholder: 'Ex: 48.8566, 2.3522 ou 48°51\'24"N 2°21\'08"E',
+  latitudeLabel: 'Latitude (-90..90)',
+  longitudeLabel: 'Longitude (-180..180)',
+  showOnMapBtn: 'Voir sur la carte',
+  invalidCoordsError: 'Coordonnées invalides. Utilisez latitude (-90..90) et longitude (-180..180).',
 };
 
 const ES: TranslationBundle = {
   ...EN,
-  searchPlaceholder: '¿A dónde vas? (dirección, ciudad...)',
+  searchPlaceholder: '¿A dónde vas? (dirección, ciudad, coordenadas...)',
   fromMyLocation: 'Desde mi ubicación GPS',
   modes: {
     pedestrian: 'A pie',
@@ -762,11 +807,20 @@ const ES: TranslationBundle = {
   deleteLabel: 'Eliminar',
   avoidUnpaved: 'Evitar vías sin asfaltar',
   vehicleRoutingNote: 'La ruta y las alertas de señales (altura, ancho, peso, eje, longitud y ADR) usan este vehículo.',
+  coordsChip: 'Coordenadas',
+  coordsTitle: 'Buscar por coordenadas',
+  coordsHint: 'Introduce latitud y longitud o pega coordenadas / enlace de Google Maps.',
+  coordsQuickLabel: 'Pegar o escribir junto (decimal, DMS o enlace)',
+  coordsQuickPlaceholder: 'Ej. 40.4168, -3.7038 o 40°25\'00"N 3°42\'14"W',
+  latitudeLabel: 'Latitud (-90..90)',
+  longitudeLabel: 'Longitud (-180..180)',
+  showOnMapBtn: 'Ver en el mapa',
+  invalidCoordsError: 'Coordenadas no válidas. Usa latitud (-90..90) y longitud (-180..180).',
 };
 
 const PL: TranslationBundle = {
   ...EN,
-  searchPlaceholder: 'Dokąd jedziesz? (adres, miasto...)',
+  searchPlaceholder: 'Dokąd jedziesz? (adres, miasto, współrzędne...)',
   fromMyLocation: 'Z mojej pozycji GPS',
   modes: {
     pedestrian: 'Pieszo',
@@ -828,7 +882,7 @@ const PL: TranslationBundle = {
     pedestrian: 'Pieszo',
     bicycle: 'Rowerem',
     auto: 'Samochodem',
-    truck: 'Ciężki / TIR',
+    truck: 'Ciężarówka / TIR',
   },
   quickSetupHint: 'Jednorazowy szybki wybór — następnym razem wejdziesz od razu!',
   quickPickTag: 'Szybki wybór',
@@ -851,11 +905,20 @@ const PL: TranslationBundle = {
   deleteLabel: 'Usuń',
   avoidUnpaved: 'Omijaj drogi nieutwardzone',
   vehicleRoutingNote: 'Trasa i ostrzeżenia o znakach (wysokość, szerokość, tonaż, oś, długość, ADR) używają tego pojazdu.',
+  coordsChip: 'Współrzędne',
+  coordsTitle: 'Znajdź po współrzędnych',
+  coordsHint: 'Wpisz szerokość i długość geograficzną lub wklej współrzędne / link Google Maps.',
+  coordsQuickLabel: 'Wklej lub wpisz razem (dziesiętne, DMS lub link)',
+  coordsQuickPlaceholder: 'Np. 52.2297, 21.0122 lub 52°13\'47"N 21°00\'44"E',
+  latitudeLabel: 'Szerokość / Lat (-90..90)',
+  longitudeLabel: 'Długość / Lon (-180..180)',
+  showOnMapBtn: 'Pokaż na mapie',
+  invalidCoordsError: 'Nieprawidłowe współrzędne. Użyj szerokości (-90..90) i długości (-180..180).',
 };
 
 const TR: TranslationBundle = {
   ...EN,
-  searchPlaceholder: 'Nereye gidiyorsun? (adres, şehir...)',
+  searchPlaceholder: 'Nereye gidiyorsun? (adres, şehir, koordinat...)',
   fromMyLocation: 'GPS konumumdan',
   modes: {
     pedestrian: 'Yürüyerek',
@@ -940,6 +1003,15 @@ const TR: TranslationBundle = {
   deleteLabel: 'Sil',
   avoidUnpaved: 'Toprak yollardan kaçın',
   vehicleRoutingNote: 'Rota ve tabela uyarıları (yükseklik, genişlik, ağırlık, aks, uzunluk ve ADR) bu aracı doğrudan dikkate alır.',
+  coordsChip: 'Koordinatlar',
+  coordsTitle: 'Koordinat ile bul',
+  coordsHint: 'Enlem ve boylam girin veya koordinat / Google Haritalar bağlantısı yapıştırın.',
+  coordsQuickLabel: 'Tek seferde yapıştırın veya yazın (ondalık, DMS veya bağlantı)',
+  coordsQuickPlaceholder: 'Örn. 41.0082, 28.9784 veya 41°00\'30"N 28°58\'42"E',
+  latitudeLabel: 'Enlem / Lat (-90..90)',
+  longitudeLabel: 'Boylam / Lon (-180..180)',
+  showOnMapBtn: 'Haritada göster',
+  invalidCoordsError: 'Geçersiz koordinatlar. Enlem (-90..90) ve boylam (-180..180) girin.',
 };
 
 const DICTIONARIES: Record<LanguageCode, TranslationBundle> = { nl: NL, en: EN, de: DE, fr: FR, es: ES, pl: PL, tr: TR };

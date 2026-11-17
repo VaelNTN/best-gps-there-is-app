@@ -47,6 +47,79 @@ function formatPhotonFeature(f: PhotonFeature, idx: number): GeocodedPlace | nul
   };
 }
 
+function dmsToDecimal(deg: number, min = 0, sec = 0, hemi?: string): number {
+  const sign = hemi && /[SW]/i.test(hemi) ? -1 : 1;
+  return sign * (Math.abs(deg) + min / 60 + sec / 3600);
+}
+
+export function parseCoordinatesInput(raw: string): { lat: number; lon: number } | null {
+  const s = raw.trim();
+  if (s.length < 3) return null;
+
+  const valid = (lat: number, lon: number): { lat: number; lon: number } | null => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+    return { lat, lon };
+  };
+
+  // 1. Google Maps / geo: / OSM map URLs
+  const urlMatch =
+    s.match(/(?:@|[?&](?:q|ll|query)=|geo:)([+-]?\d{1,2}\.\d+)\s*,\s*([+-]?\d{1,3}\.\d+)/i) ||
+    s.match(/#map=\d+\/([+-]?\d{1,2}\.\d+)\/([+-]?\d{1,3}\.\d+)/i);
+  if (urlMatch) {
+    const res = valid(Number(urlMatch[1]), Number(urlMatch[2]));
+    if (res) return res;
+  }
+
+  // 2. DMS / DDM (e.g. 50°51'01.2"N 4°21'06.1"E or 50°51.02'N, 4°21.10'E)
+  const dmsRegex =
+    /([NS])?\s*(\d{1,2})\s*[°º]\s*(\d{1,2}(?:[.,]\d+)?)?\s*(?:['’′]\s*(\d{1,2}(?:[.,]\d+)?)?\s*(?:["”″])?)?\s*([NS])?[\s,;]+([EW])?\s*(\d{1,3})\s*[°º]\s*(\d{1,2}(?:[.,]\d+)?)?\s*(?:['’′]\s*(\d{1,2}(?:[.,]\d+)?)?\s*(?:["”″])?)?\s*([EW])?/i;
+  const dms = s.match(dmsRegex);
+  if (dms) {
+    const latH = dms[1] || dms[5];
+    const lonH = dms[6] || dms[10];
+    const latDeg = Number(dms[2]);
+    const latMin = dms[3] ? Number(dms[3].replace(',', '.')) : 0;
+    const latSec = dms[4] ? Number(dms[4].replace(',', '.')) : 0;
+    const lonDeg = Number(dms[7]);
+    const lonMin = dms[8] ? Number(dms[8].replace(',', '.')) : 0;
+    const lonSec = dms[9] ? Number(dms[9].replace(',', '.')) : 0;
+    const res = valid(dmsToDecimal(latDeg, latMin, latSec, latH), dmsToDecimal(lonDeg, lonMin, lonSec, lonH));
+    if (res) return res;
+  }
+
+  // 3. Decimal with optional degree symbol and N/S/E/W markers (e.g. 50.8503 N, 4.3517 E or N50.8503 E4.3517)
+  const cardMatch = s.match(
+    /^([NS])?\s*([+-]?\d{1,2}(?:[.,]\d+)?)\s*°?\s*([NS])?[\s,;]+([EW])?\s*([+-]?\d{1,3}(?:[.,]\d+)?)\s*°?\s*([EW])?$/i
+  );
+  if (cardMatch && (cardMatch[1] || cardMatch[3] || cardMatch[4] || cardMatch[6])) {
+    const latH = cardMatch[1] || cardMatch[3];
+    const lonH = cardMatch[4] || cardMatch[6];
+    let lat = Number(cardMatch[2].replace(',', '.'));
+    let lon = Number(cardMatch[5].replace(',', '.'));
+    if (latH && /S/i.test(latH)) lat = -Math.abs(lat);
+    if (lonH && /W/i.test(lonH)) lon = -Math.abs(lon);
+    const res = valid(lat, lon);
+    if (res) return res;
+  }
+
+  // 4. Plain decimal degrees with dot (requires decimal fraction on at least one coordinate)
+  const dotMatch = s.match(/^([+-]?\d{1,2}(?:\.\d+)?)\s*[,;\s/]+\s*([+-]?\d{1,3}(?:\.\d+)?)$/);
+  if (dotMatch && (dotMatch[1].includes('.') || dotMatch[2].includes('.'))) {
+    const res = valid(Number(dotMatch[1]), Number(dotMatch[2]));
+    if (res) return res;
+  }
+
+  // 5. European comma decimals separated by semicolon or whitespace (e.g. 50,8503; 4,3517 or 50,8503 4,3517)
+  const euMatch = s.match(/^([+-]?\d{1,2},\d+)\s*[;\s/]+\s*([+-]?\d{1,3},\d+)$/);
+  if (euMatch) {
+    const res = valid(Number(euMatch[1].replace(',', '.')), Number(euMatch[2].replace(',', '.')));
+    if (res) return res;
+  }
+
+  return null;
+}
+
 export async function searchPlaces(
   query: string,
   biasLat?: number,
@@ -55,6 +128,26 @@ export async function searchPlaces(
 ): Promise<GeocodedPlace[]> {
   const q = query.trim();
   if (q.length < 2) return [];
+
+  const parsedCoords = parseCoordinatesInput(q);
+  if (parsedCoords) {
+    const resolved = await reverseGeocode(parsedCoords.lat, parsedCoords.lon, lang);
+    const coordLabel = `${parsedCoords.lat.toFixed(5)}, ${parsedCoords.lon.toFixed(5)}`;
+    const subtitle =
+      resolved.name && resolved.name !== coordLabel
+        ? `${resolved.name}${resolved.subtitle ? `, ${resolved.subtitle}` : ''}`
+        : resolved.subtitle || 'GPS';
+    return [
+      {
+        id: `coord-${parsedCoords.lat.toFixed(6)}-${parsedCoords.lon.toFixed(6)}`,
+        name: `📍 ${coordLabel}`,
+        subtitle,
+        lat: parsedCoords.lat,
+        lon: parsedCoords.lon,
+        category: 'coordinates',
+      },
+    ];
+  }
 
   // Try Komoot Photon first (fast autocomplete with location bias)
   try {
