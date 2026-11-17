@@ -137,7 +137,7 @@ export interface TranslationBundle {
 }
 
 const NL: TranslationBundle = {
-  appTitle: 'Best GPS There Is',
+  appTitle: 'Road Mapper',
   searchPlaceholder: 'Waar wil je heen? (adres, stad, bedrijf...)',
   fromMyLocation: 'Vanaf mijn GPS-locatie',
   modes: {
@@ -285,7 +285,7 @@ const NL: TranslationBundle = {
 };
 
 const EN: TranslationBundle = {
-  appTitle: 'Best GPS There Is',
+  appTitle: 'Road Mapper',
   searchPlaceholder: 'Where to? (address, city, company...)',
   fromMyLocation: 'From my GPS location',
   modes: {

@@ -1,4 +1,4 @@
-# Best GPS There Is
+# Road Mapper
 
 Multilingual Android & Web GPS navigation app built with TypeScript, Vite, Capacitor 8, and MapLibre GL JS.
 

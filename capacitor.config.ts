@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.bestgpsthereis.app',
-  appName: 'Best GPS There Is',
+  appName: 'Road Mapper',
   webDir: 'dist',
   server: {
     androidScheme: 'https',

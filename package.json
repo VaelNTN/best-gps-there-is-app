@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Best GPS There Is - Multilingual turn-by-turn GPS navigation for Walking, Bicycle, Car, and Heavy Trucks",
+  "description": "Road Mapper - Multilingual turn-by-turn GPS navigation for Walking, Bicycle, Car, and Heavy Trucks",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
