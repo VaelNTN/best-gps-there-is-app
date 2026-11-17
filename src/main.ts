@@ -6,6 +6,8 @@ import { DEFAULT_FALLBACK_FIX, GpsWatcher, requestInitialGpsFix } from './servic
 import { fetchRoadSignsAround, renderRoadSignSvg } from './services/roadSigns';
 import { calculateRoutes, computeBearing, distanceToRouteMeters, haversineMeters } from './services/routing';
 import { voiceNav } from './services/voice';
+import { assistantReplies } from './services/voiceAssistantReplies';
+import { ParsedVoiceCommand, parseVoiceCommand, voiceListener } from './services/voiceCommands';
 import {
   addRecentPlace,
   deleteCustomVehicle,
@@ -74,7 +76,13 @@ class BestGpsApp {
   private lastHudRenderAt = 0;
   private followCamera = true;
   private lastSpokenStepKey = '';
+  private lastSpokenNavInstruction = '';
   private lastRerouteAt = 0;
+
+  private isListening = false;
+  private handsfreeLoopActive = false;
+  private voiceBanner: { heard?: string; reply?: string; showHints?: boolean } | null = null;
+  private voiceBannerTimer = 0;
 
   private modal: ModalKind = null;
   private launcherOpen = true;
@@ -241,6 +249,11 @@ class BestGpsApp {
             placeholder="${bundle.searchPlaceholder}"
             value="${this.destination ? this.escapeHtml(this.destination.name) : ''}"
           />
+          <button
+            class="round-icon-btn ${this.isListening ? 'mic-listening' : this.settings.voiceHandsfree ? 'mic-handsfree' : ''}"
+            id="btn-mic-listen"
+            title="${bundle.micBtnTitle}"
+          >🎙️</button>
           ${
             this.destination
               ? `<button class="round-icon-btn" id="btn-clear-dest" title="Clear">✕</button>`
@@ -273,6 +286,9 @@ class BestGpsApp {
           <button class="pill-chip" id="btn-open-coords">
             📍 ${bundle.coordsChip}
           </button>
+          <button class="pill-chip ${this.settings.voiceHandsfree ? 'active' : ''}" id="btn-toggle-handsfree">
+            🎧 ${bundle.handsfreeChip}
+          </button>
           <button class="pill-chip ${this.settings.mode === 'truck' ? 'highlight' : ''}" id="btn-open-vehicles">
             🚛 ${bundle.vehiclesTab} (${this.settings.savedVehicles.length})${this.settings.mode === 'truck' ? ` • ${truckSummary}` : ''}
           </button>
@@ -293,6 +309,7 @@ class BestGpsApp {
             .join('')}
         </div>
 
+        ${this.renderVoiceAssistantBanner(bundle)}
         ${this.searchOpen ? this.renderSearchDropdown(bundle) : ''}
       </div>
 
@@ -314,6 +331,34 @@ class BestGpsApp {
 
     this.bindPlanningEvents();
     this.renderModal();
+  }
+
+  private renderVoiceAssistantBanner(bundle: ReturnType<typeof t>): string {
+    if (!this.isListening && !this.voiceBanner) return '';
+    const b = this.voiceBanner;
+    const showQuickChips = this.isListening || Boolean(b?.showHints);
+    return `
+      <div class="voice-assistant-pill ${this.isListening ? 'listening' : ''}">
+        <div class="voice-assistant-row">
+          <strong style="font-size:12px;">${this.isListening ? '🎙️ ...' : '💬 Road Mapper'}</strong>
+          <button type="button" class="round-icon-btn" id="btn-voice-banner-close" style="width:26px;height:26px;font-size:12px;">✕</button>
+        </div>
+        ${this.isListening ? `<div class="voice-reply">${this.escapeHtml(bundle.voiceListeningPrompt)}</div>` : ''}
+        ${b?.heard ? `<div class="voice-heard">“${this.escapeHtml(b.heard)}”</div>` : ''}
+        ${b?.reply ? `<div class="voice-reply">🔊 ${this.escapeHtml(b.reply)}</div>` : ''}
+        ${
+          showQuickChips
+            ? `
+          <div class="voice-hints-row">
+            <button type="button" class="voice-hint-chip" data-voice-sim="${this.escapeHtml(bundle.voiceQuickHint1)}">${this.escapeHtml(bundle.voiceQuickHint1)}</button>
+            <button type="button" class="voice-hint-chip" data-voice-sim="${this.escapeHtml(bundle.voiceQuickHint2)}">${this.escapeHtml(bundle.voiceQuickHint2)}</button>
+            <button type="button" class="voice-hint-chip" data-voice-sim="${this.escapeHtml(bundle.voiceQuickHint3)}">${this.escapeHtml(bundle.voiceQuickHint3)}</button>
+          </div>
+        `
+            : ''
+        }
+      </div>
+    `;
   }
 
   private getModeIcon(mode: TransportMode): string {
@@ -1252,6 +1297,7 @@ class BestGpsApp {
       </div>
 
       <div class="nav-bottom-dock">
+        ${this.renderVoiceAssistantBanner(bundle)}
         ${isVehicle ? this.renderMiniSignsStripHtml() : ''}
         <div class="nav-bottom-bar">
           <div class="nav-bar-main">
@@ -1285,6 +1331,11 @@ class BestGpsApp {
                 ? `<button class="sim-mult-btn" id="btn-sim-mult">${this.simMultiplier}x</button>`
                 : ''
             }
+            <button
+              class="round-icon-btn ${this.isListening ? 'mic-listening' : this.settings.voiceHandsfree ? 'mic-handsfree' : ''}"
+              id="btn-nav-mic"
+              title="${bundle.micBtnTitle}"
+            >🎙️</button>
             <button class="round-icon-btn" id="btn-nav-voice">${this.settings.voiceEnabled ? '🔊' : '🔇'}</button>
             <button class="round-icon-btn" id="btn-nav-recenter" title="${bundle.recenter}">🎯</button>
             <button class="danger-btn" id="btn-stop-nav">${bundle.stopNav}</button>
@@ -1292,6 +1343,29 @@ class BestGpsApp {
         </div>
       </div>
     `;
+  }
+
+  private bindVoiceBannerEvents(): void {
+    this.root.querySelector('#btn-voice-banner-close')?.addEventListener('click', () => {
+      if (this.isListening) {
+        this.isListening = false;
+        this.handsfreeLoopActive = false;
+        voiceListener.stop();
+      }
+      this.voiceBanner = null;
+      window.clearTimeout(this.voiceBannerTimer);
+      this.renderUi();
+    });
+    this.root.querySelectorAll<HTMLButtonElement>('[data-voice-sim]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const phrase = btn.dataset.voiceSim?.trim();
+        if (!phrase) return;
+        this.isListening = false;
+        voiceListener.stop();
+        const cmd = parseVoiceCommand(phrase, this.settings.language);
+        void this.executeVoiceCommand(cmd, phrase);
+      });
+    });
   }
 
   private bindSignPillEvents(): void {
@@ -1309,6 +1383,13 @@ class BestGpsApp {
       this.launcherOpen = true;
       this.renderUi();
     });
+    this.root.querySelector('#btn-mic-listen')?.addEventListener('click', () => {
+      void this.toggleVoiceListening();
+    });
+    this.root.querySelector('#btn-toggle-handsfree')?.addEventListener('click', () => {
+      void this.toggleHandsfreeMode();
+    });
+    this.bindVoiceBannerEvents();
 
     const searchInput = this.root.querySelector<HTMLInputElement>('#search-box');
     searchInput?.addEventListener('focus', () => {
@@ -1738,6 +1819,7 @@ class BestGpsApp {
 
     const bundle = t(this.settings.language);
     if (route.steps[0]) {
+      this.lastSpokenNavInstruction = route.steps[0].instruction;
       void voiceNav.speak(route.steps[0].instruction, this.settings, true);
     }
 
@@ -1806,6 +1888,9 @@ class BestGpsApp {
 
     this.mapCtrl?.updateGpsFix(this.currentFix, true);
     this.renderUi();
+    if (this.settings.voiceHandsfree && !this.handsfreeLoopActive) {
+      void this.runHandsfreeLoop();
+    }
   }
 
   private stopNavigation(arrived = false): void {
@@ -1814,6 +1899,11 @@ class BestGpsApp {
     if (this.simTimer !== null) {
       window.clearInterval(this.simTimer);
       this.simTimer = null;
+    }
+    this.handsfreeLoopActive = false;
+    if (this.isListening) {
+      this.isListening = false;
+      voiceListener.stop();
     }
     if (!arrived) void voiceNav.stop();
     this.mapCtrl?.flyTo({ lat: this.currentFix.lat, lon: this.currentFix.lon }, 14, 0);
@@ -1888,6 +1978,7 @@ class BestGpsApp {
           prog.distanceToStepM <= 70
             ? prog.nextStep.instruction
             : `${bundle.inDistance} ${this.formatDistance(prog.distanceToStepM)}, ${prog.nextStep.instruction}`;
+        this.lastSpokenNavInstruction = msg;
         void voiceNav.speak(msg, this.settings, true);
       }
     }
@@ -1947,6 +2038,10 @@ class BestGpsApp {
       this.followCamera = true;
       this.mapCtrl?.updateGpsFix(this.currentFix, true);
     });
+    this.root.querySelector('#btn-nav-mic')?.addEventListener('click', () => {
+      void this.toggleVoiceListening();
+    });
+    this.bindVoiceBannerEvents();
     this.root.querySelector('#btn-nav-voice')?.addEventListener('click', () => {
       this.settings.voiceEnabled = !this.settings.voiceEnabled;
       saveSettings(this.settings);
@@ -2234,6 +2329,7 @@ class BestGpsApp {
             </div>
 
             <label class="toggle-row"><span>🔊 ${bundle.voiceLabel}</span><input id="set-voice" type="checkbox" ${this.settings.voiceEnabled ? 'checked' : ''}></label>
+            <label class="toggle-row"><span>🎧 ${bundle.voiceHandsfreeLabel}</span><input id="set-handsfree" type="checkbox" ${this.settings.voiceHandsfree ? 'checked' : ''}></label>
 
             <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:8px;">
               <div style="font-size:12px;font-weight:800;">🎙️ ${bundle.voiceStyleLabel}</div>
@@ -2361,6 +2457,7 @@ class BestGpsApp {
         this.settings.mapTheme = (container.querySelector('#set-theme') as HTMLSelectElement).value as AppSettings['mapTheme'];
         this.settings.units = (container.querySelector('#set-units') as HTMLSelectElement).value as AppSettings['units'];
         this.settings.voiceEnabled = (container.querySelector('#set-voice') as HTMLInputElement).checked;
+        this.settings.voiceHandsfree = (container.querySelector('#set-handsfree') as HTMLInputElement).checked;
         this.settings.voiceStyle = draftStyle;
         this.settings.voiceRate = draftRate;
         this.settings.voicePitch = draftPitch;
@@ -2376,6 +2473,11 @@ class BestGpsApp {
         this.mapCtrl?.setTheme(this.settings.mapTheme);
         this.modal = null;
         this.renderUi();
+        if (this.settings.voiceHandsfree && !this.handsfreeLoopActive) {
+          void this.runHandsfreeLoop();
+        } else if (!this.settings.voiceHandsfree) {
+          this.stopHandsfreeLoop();
+        }
         if (this.destination) void this.computeActiveRoute();
       });
     } else if (this.modal === 'coords') {
@@ -2475,6 +2577,321 @@ class BestGpsApp {
         this.renderModal();
       }
     });
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  private setVoiceBanner(heard?: string, reply?: string, durationMs = 6500, showHints = false): void {
+    window.clearTimeout(this.voiceBannerTimer);
+    this.voiceBanner = { heard, reply, showHints };
+    this.renderUi();
+    this.voiceBannerTimer = window.setTimeout(() => {
+      if (!this.isListening) {
+        this.voiceBanner = null;
+        this.renderUi();
+      }
+    }, durationMs);
+  }
+
+  private stopHandsfreeLoop(): void {
+    this.handsfreeLoopActive = false;
+    if (this.isListening) {
+      this.isListening = false;
+      voiceListener.stop();
+    }
+    this.renderUi();
+  }
+
+  private async toggleHandsfreeMode(): Promise<void> {
+    this.settings.voiceHandsfree = !this.settings.voiceHandsfree;
+    saveSettings(this.settings);
+    if (this.settings.voiceHandsfree) {
+      this.renderUi();
+      void this.runHandsfreeLoop();
+    } else {
+      this.stopHandsfreeLoop();
+    }
+  }
+
+  private async toggleVoiceListening(): Promise<void> {
+    if (this.isListening) {
+      this.isListening = false;
+      voiceListener.stop();
+      this.renderUi();
+      return;
+    }
+    await this.runSingleListen();
+  }
+
+  private async runSingleListen(): Promise<void> {
+    const bundle = t(this.settings.language);
+    await voiceNav.stop();
+    this.isListening = true;
+    this.voiceBanner = null;
+    this.renderUi();
+
+    const res = await voiceListener.listenOnce(this.settings.language);
+    this.isListening = false;
+
+    if (res.transcript) {
+      const cmd = parseVoiceCommand(res.transcript, this.settings.language);
+      await this.executeVoiceCommand(cmd, res.transcript);
+      return;
+    }
+
+    if (res.reason === 'denied') {
+      this.showToast(bundle.voiceNoPermission);
+      this.setVoiceBanner(undefined, bundle.voiceNoPermission, 6000, false);
+    } else if (res.reason === 'unavailable') {
+      this.showToast(bundle.voiceUnavailable);
+      this.setVoiceBanner(undefined, bundle.voiceUnavailable, 9000, true);
+    } else if (res.reason === 'no-match') {
+      this.showToast(bundle.voiceDidNotCatch);
+      this.renderUi();
+    } else {
+      this.renderUi();
+    }
+  }
+
+  private async runHandsfreeLoop(): Promise<void> {
+    if (this.handsfreeLoopActive) return;
+    this.handsfreeLoopActive = true;
+
+    while (this.handsfreeLoopActive && this.settings.voiceHandsfree) {
+      if (this.modal !== null || this.launcherOpen) {
+        await this.sleep(600);
+        continue;
+      }
+      if (this.isListening) {
+        await this.sleep(300);
+        continue;
+      }
+
+      await voiceNav.stop();
+      this.isListening = true;
+      this.renderUi();
+
+      const res = await voiceListener.listenOnce(this.settings.language);
+      this.isListening = false;
+
+      if (!this.handsfreeLoopActive || !this.settings.voiceHandsfree) {
+        this.renderUi();
+        break;
+      }
+
+      const bundle = t(this.settings.language);
+      if (res.transcript) {
+        const cmd = parseVoiceCommand(res.transcript, this.settings.language);
+        await this.executeVoiceCommand(cmd, res.transcript);
+        await this.sleep(550);
+      } else if (res.reason === 'denied') {
+        this.settings.voiceHandsfree = false;
+        saveSettings(this.settings);
+        this.handsfreeLoopActive = false;
+        this.setVoiceBanner(undefined, bundle.voiceNoPermission, 6000, false);
+        break;
+      } else if (res.reason === 'unavailable') {
+        this.settings.voiceHandsfree = false;
+        saveSettings(this.settings);
+        this.handsfreeLoopActive = false;
+        this.setVoiceBanner(undefined, bundle.voiceUnavailable, 9000, true);
+        break;
+      } else {
+        this.renderUi();
+        await this.sleep(900);
+      }
+    }
+  }
+
+  private async executeVoiceCommand(cmd: ParsedVoiceCommand, rawTranscript: string): Promise<void> {
+    const lang = this.settings.language;
+    const r = assistantReplies(lang);
+    const activeRoute = this.routes[this.selectedRouteIdx] ?? null;
+
+    const respond = async (reply: string, showHints = false): Promise<void> => {
+      this.setVoiceBanner(rawTranscript, reply, 6500, showHints);
+      await voiceNav.speakAssistantReply(reply, this.settings);
+    };
+
+    switch (cmd.kind) {
+      case 'mute': {
+        this.settings.voiceEnabled = false;
+        saveSettings(this.settings);
+        await respond(r.muted);
+        return;
+      }
+      case 'unmute': {
+        this.settings.voiceEnabled = true;
+        saveSettings(this.settings);
+        await respond(r.unmuted);
+        return;
+      }
+      case 'greeting': {
+        await respond(r.greeting);
+        return;
+      }
+      case 'thanks': {
+        await respond(r.thanks);
+        return;
+      }
+      case 'help': {
+        await respond(r.help, true);
+        return;
+      }
+      case 'eta': {
+        if (!activeRoute) {
+          await respond(r.noActiveRoute);
+          return;
+        }
+        const secs = this.isNavigating ? this.computeNavProgress(activeRoute).remainingSeconds : activeRoute.durationSeconds;
+        const meters = this.isNavigating ? this.computeNavProgress(activeRoute).remainingMeters : activeRoute.distanceMeters;
+        await respond(r.eta(this.formatDuration(secs), this.formatDistance(meters), this.formatEta(secs)));
+        return;
+      }
+      case 'next_turn': {
+        if (!activeRoute) {
+          await respond(r.noActiveRoute);
+          return;
+        }
+        const prog = this.isNavigating
+          ? this.computeNavProgress(activeRoute)
+          : { nextStep: activeRoute.steps[0], distanceToStepM: activeRoute.steps[0]?.distanceMeters ?? 0 };
+        if (!prog.nextStep) {
+          await respond(r.repeatNone);
+          return;
+        }
+        await respond(r.nextTurn(this.formatDistance(prog.distanceToStepM), prog.nextStep.instruction));
+        return;
+      }
+      case 'repeat': {
+        if (this.lastSpokenNavInstruction) {
+          await respond(this.lastSpokenNavInstruction);
+          return;
+        }
+        if (activeRoute?.steps[0]) {
+          await respond(activeRoute.steps[0].instruction);
+          return;
+        }
+        await respond(r.repeatNone);
+        return;
+      }
+      case 'speed': {
+        const sp = this.formatSpeed(this.currentFix.speedKmh);
+        const limitDisp =
+          this.currentMaxSpeedKmh === null
+            ? null
+            : this.settings.units === 'imperial'
+              ? Math.round(this.currentMaxSpeedKmh * 0.621371)
+              : this.currentMaxSpeedKmh;
+        const nearbyDanger =
+          this.roadSigns.find((s) => s.isDangerForMode && haversineMeters(this.currentFix, s) < 800)?.title ?? null;
+        await respond(r.speed(sp.value, sp.unit, limitDisp, nearbyDanger));
+        return;
+      }
+      case 'where_am_i': {
+        const place = await reverseGeocode(this.currentFix.lat, this.currentFix.lon, lang);
+        const label = place.subtitle ? `${place.name}, ${place.subtitle}` : place.name;
+        await respond(r.whereAmI(label));
+        return;
+      }
+      case 'poi': {
+        await this.loadPois(cmd.poiKind);
+        const kindLabel = r.poiNames[cmd.poiKind];
+        if (this.poiItems.length === 0) {
+          await respond(r.poiNotFound(kindLabel));
+          return;
+        }
+        const sorted = [...this.poiItems].sort(
+          (a, b) => haversineMeters(this.currentFix, a) - haversineMeters(this.currentFix, b)
+        );
+        const closest = sorted[0];
+        const dist = haversineMeters(this.currentFix, closest);
+        this.mapCtrl?.flyTo({ lat: closest.lat, lon: closest.lon }, 14, 0);
+        await respond(r.poiFound(this.poiItems.length, kindLabel, closest.name, this.formatDistance(dist)));
+        return;
+      }
+      case 'go_home': {
+        if (!this.settings.homePlace) {
+          await respond(r.noSavedHome);
+          return;
+        }
+        this.selectDestination(this.settings.homePlace);
+        await respond(r.navigatingTo(this.settings.homePlace.name));
+        return;
+      }
+      case 'go_work': {
+        if (!this.settings.workPlace) {
+          await respond(r.noSavedWork);
+          return;
+        }
+        this.selectDestination(this.settings.workPlace);
+        await respond(r.navigatingTo(this.settings.workPlace.name));
+        return;
+      }
+      case 'navigate': {
+        const parsedCoords = parseCoordinatesInput(cmd.query);
+        if (parsedCoords) {
+          await this.handleCoordinateAction(parsedCoords.lat, parsedCoords.lon, 'navigate');
+          await respond(r.navigatingTo(`${parsedCoords.lat.toFixed(4)}, ${parsedCoords.lon.toFixed(4)}`));
+          return;
+        }
+        const hits = await searchPlaces(cmd.query, this.currentFix.lat, this.currentFix.lon, lang);
+        if (hits.length === 0) {
+          await respond(r.placeNotFound(cmd.query));
+          return;
+        }
+        this.selectDestination(hits[0]);
+        await respond(r.navigatingTo(hits[0].name));
+        return;
+      }
+      case 'start_nav': {
+        if (!activeRoute) {
+          await respond(r.startNavNeedRoute);
+          return;
+        }
+        await respond(r.startNavOk);
+        this.startNavigation(false);
+        return;
+      }
+      case 'stop_nav': {
+        if (this.isNavigating) {
+          this.stopNavigation(false);
+        }
+        await respond(r.stopNavOk);
+        return;
+      }
+      case 'recenter': {
+        this.followCamera = true;
+        this.mapCtrl?.flyTo({ lat: this.currentFix.lat, lon: this.currentFix.lon }, 15, 0);
+        await respond(r.recenterOk);
+        return;
+      }
+      case 'set_mode': {
+        this.settings.mode = cmd.mode;
+        this.settings.configuredModes[cmd.mode] = true;
+        this.launcherOpen = false;
+        this.quickSetupMode = null;
+        saveSettings(this.settings);
+        void this.refreshRoadSigns(true);
+        if (this.destination) void this.computeActiveRoute();
+        await respond(r.modeChanged(r.modeNames[cmd.mode]));
+        return;
+      }
+      case 'set_theme': {
+        this.settings.mapTheme = cmd.theme;
+        saveSettings(this.settings);
+        this.applyBodyTheme();
+        this.mapCtrl?.setTheme(cmd.theme);
+        await respond(cmd.theme === 'day' ? r.themeDay : r.themeNight);
+        return;
+      }
+      case 'unknown': {
+        await respond(r.unknown(cmd.raw), true);
+        return;
+      }
+    }
   }
 
   private showToast(msg: string): void {

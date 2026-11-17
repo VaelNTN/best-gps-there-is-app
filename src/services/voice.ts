@@ -290,19 +290,46 @@ class VoiceNavigator {
     try {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(spoken);
-        utter.lang = resolvedLang;
-        utter.rate = safeRate;
-        utter.pitch = safePitch;
-        if (chosen) {
-          const match = window.speechSynthesis.getVoices().find((wv) => wv.voiceURI === chosen.voiceURI || wv.name === chosen.name);
-          if (match) utter.voice = match;
-        }
-        window.speechSynthesis.speak(utter);
+        await new Promise<void>((resolve) => {
+          let done = false;
+          const finish = (): void => {
+            if (done) return;
+            done = true;
+            resolve();
+          };
+          const utter = new SpeechSynthesisUtterance(spoken);
+          utter.lang = resolvedLang;
+          utter.rate = safeRate;
+          utter.pitch = safePitch;
+          if (chosen) {
+            const match = window.speechSynthesis.getVoices().find((wv) => wv.voiceURI === chosen.voiceURI || wv.name === chosen.name);
+            if (match) utter.voice = match;
+          }
+          utter.onend = finish;
+          utter.onerror = finish;
+          if (typeof window.setTimeout === 'function') {
+            window.setTimeout(finish, 9000);
+          }
+          window.speechSynthesis.speak(utter);
+        });
       }
     } catch {
       // Ignore if speech synthesis unsupported
     }
+  }
+
+  /**
+   * Always speaks an interactive voice assistant reply out loud (e.g. acknowledging "zwijg even")
+   * using the user's chosen voice style, rate, pitch and device voice, even if turn-by-turn TTS is muted.
+   */
+  async speakAssistantReply(text: string, settings: AppSettings): Promise<void> {
+    if (!text.trim()) return;
+    await this.speak(text, settings.language, true, true, {
+      voiceStyle: settings.voiceStyle,
+      voiceRate: settings.voiceRate,
+      voicePitch: settings.voicePitch,
+      voiceUri: settings.voiceUri,
+    });
   }
 
   getLastCachedCount(): number {

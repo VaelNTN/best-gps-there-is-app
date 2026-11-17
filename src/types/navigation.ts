@@ -166,6 +166,7 @@ export interface AppSettings {
   units: UnitSystem;
   mapTheme: MapTheme;
   voiceEnabled: boolean;
+  voiceHandsfree: boolean;
   voiceStyle: VoiceStyle;
   voiceRate: number;
   voicePitch: number;

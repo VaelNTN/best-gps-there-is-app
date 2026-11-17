@@ -1222,6 +1222,86 @@ body.theme-day .vehicle-editor-box {
   pointer-events: none;
 }
 
+/* Voice Assistant & Listening Indicator */
+@keyframes mic-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.72);
+  }
+  70% {
+    box-shadow: 0 0 0 11px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.round-icon-btn.mic-listening {
+  border-color: var(--red);
+  background: rgba(239, 68, 68, 0.28);
+  color: #fff;
+  animation: mic-pulse 1.3s infinite;
+}
+
+.round-icon-btn.mic-handsfree {
+  border-color: var(--green);
+  background: rgba(16, 185, 129, 0.22);
+}
+
+.voice-assistant-pill {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  border: 1.5px solid var(--accent);
+  border-radius: 16px;
+  padding: 9px 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.voice-assistant-pill.listening {
+  border-color: var(--red);
+  background: linear-gradient(155deg, rgba(127, 29, 29, 0.35), var(--bg-glass));
+}
+
+.voice-assistant-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.voice-heard {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.voice-reply {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.voice-hints-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.voice-hint-chip {
+  border: 1px solid var(--border);
+  background: var(--bg-card-2);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .hidden {
   display: none !important;
 }

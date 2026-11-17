@@ -154,6 +154,16 @@ export interface TranslationBundle {
   voicePitchLabel: string;
   voiceInstallMore: string;
   voiceInstallTip: string;
+  micBtnTitle: string;
+  handsfreeChip: string;
+  voiceHandsfreeLabel: string;
+  voiceListeningPrompt: string;
+  voiceNoPermission: string;
+  voiceUnavailable: string;
+  voiceDidNotCatch: string;
+  voiceQuickHint1: string;
+  voiceQuickHint2: string;
+  voiceQuickHint3: string;
 }
 
 const NL: TranslationBundle = {
@@ -322,6 +332,16 @@ const NL: TranslationBundle = {
   voicePitchLabel: 'Warmte / Toonhoogte',
   voiceInstallMore: '📲 HD-stemmen openen',
   voiceInstallTip: 'Tip: Download een Google HD/Neural-stem op je telefoon voor de meest natuurlijke klank.',
+  micBtnTitle: 'Spreek commando of vraag',
+  handsfreeChip: 'Handsfree',
+  voiceHandsfreeLabel: 'Doorlopend luisteren tijdens rit (handsfree)',
+  voiceListeningPrompt: 'Ik luister... Zeg bijv. "zwijg even", "hoelang nog?", "hoe snel rijd ik?" of "zoek diesel"',
+  voiceNoPermission: 'Microfoon-toegang geweigerd. Sta microfoon toe in je telefooninstellingen.',
+  voiceUnavailable: 'Spraakherkenning niet beschikbaar op dit toestel. Tik hieronder een commando aan.',
+  voiceDidNotCatch: 'Niet goed verstaan, probeer nog eens.',
+  voiceQuickHint1: 'Zwijg even',
+  voiceQuickHint2: 'Hoelang nog?',
+  voiceQuickHint3: 'Waar kan ik tanken?',
 };
 
 const EN: TranslationBundle = {
@@ -490,6 +510,16 @@ const EN: TranslationBundle = {
   voicePitchLabel: 'Warmth / Pitch',
   voiceInstallMore: '📲 Open HD voice packs',
   voiceInstallTip: 'Tip: Download a Google HD/Neural voice on your phone for the warmest natural sound.',
+  micBtnTitle: 'Speak a command or question',
+  handsfreeChip: 'Handsfree',
+  voiceHandsfreeLabel: 'Continuous listening while driving (handsfree)',
+  voiceListeningPrompt: 'Listening... Try "be quiet", "how long left?", "how fast am I going?", or "find fuel"',
+  voiceNoPermission: 'Microphone permission denied. Please allow microphone access in settings.',
+  voiceUnavailable: 'Speech recognition unavailable on this device. Tap a quick command below.',
+  voiceDidNotCatch: 'Did not catch that, please try again.',
+  voiceQuickHint1: 'Be quiet',
+  voiceQuickHint2: 'How long left?',
+  voiceQuickHint3: 'Find fuel',
 };
 
 const DE: TranslationBundle = {
@@ -642,6 +672,16 @@ const DE: TranslationBundle = {
   voicePitchLabel: 'Wärme / Tonhöhe',
   voiceInstallMore: '📲 HD-Stimmen laden',
   voiceInstallTip: 'Tipp: Lade eine Google HD/Neural-Stimme herunter für den natürlichsten Klang.',
+  micBtnTitle: 'Befehl oder Frage sprechen',
+  handsfreeChip: 'Freisprechen',
+  voiceHandsfreeLabel: 'Während der Fahrt durchgehend zuhören (Freisprechen)',
+  voiceListeningPrompt: 'Ich höre zu... Sag z.B. "sei still", "wie lange noch?" oder "tanken"',
+  voiceNoPermission: 'Mikrofonzugriff verweigert. Bitte in den Einstellungen erlauben.',
+  voiceUnavailable: 'Spracherkennung nicht verfügbar. Tippe unten auf einen Schnellbefehl.',
+  voiceDidNotCatch: 'Nicht verstanden, bitte noch einmal.',
+  voiceQuickHint1: 'Sei still',
+  voiceQuickHint2: 'Wie lange noch?',
+  voiceQuickHint3: 'Tanken suchen',
 };
 
 const FR: TranslationBundle = {
@@ -771,6 +811,16 @@ const FR: TranslationBundle = {
   voicePitchLabel: 'Chaleur / Hauteur',
   voiceInstallMore: '📲 Voix HD sur appareil',
   voiceInstallTip: 'Astuce : téléchargez une voix Google HD/Neurone pour un rendu très naturel.',
+  micBtnTitle: 'Dire une commande ou question',
+  handsfreeChip: 'Mains libres',
+  voiceHandsfreeLabel: 'Écoute continue en conduite (mains libres)',
+  voiceListeningPrompt: 'J’écoute... Dites par ex. "tais-toi", "combien de temps?" ou "carburant"',
+  voiceNoPermission: 'Accès au micro refusé. Autorisez le micro dans les réglages.',
+  voiceUnavailable: 'Reconnaissance vocale indisponible. Appuyez sur une commande ci-dessous.',
+  voiceDidNotCatch: 'Je n’ai pas compris, réessayez.',
+  voiceQuickHint1: 'Tais-toi',
+  voiceQuickHint2: 'Combien de temps?',
+  voiceQuickHint3: 'Trouver carburant',
 };
 
 const ES: TranslationBundle = {
@@ -882,6 +932,16 @@ const ES: TranslationBundle = {
   voicePitchLabel: 'Calidez / Tono',
   voiceInstallMore: '📲 Voces HD en teléfono',
   voiceInstallTip: 'Consejo: descarga una voz Google HD/Neuronal para un sonido más natural.',
+  micBtnTitle: 'Di un comando o pregunta',
+  handsfreeChip: 'Manos libres',
+  voiceHandsfreeLabel: 'Escucha continua al conducir (manos libres)',
+  voiceListeningPrompt: 'Escuchando... Di por ej. "cállate", "¿cuánto falta?" o "combustible"',
+  voiceNoPermission: 'Permiso de micrófono denegado. Actívalo en ajustes.',
+  voiceUnavailable: 'Reconocimiento de voz no disponible. Toca un comando rápido abajo.',
+  voiceDidNotCatch: 'No lo entendí bien, inténtalo de nuevo.',
+  voiceQuickHint1: 'Cállate',
+  voiceQuickHint2: '¿Cuánto falta?',
+  voiceQuickHint3: 'Buscar gasolina',
 };
 
 const PL: TranslationBundle = {
@@ -991,6 +1051,16 @@ const PL: TranslationBundle = {
   voicePitchLabel: 'Ciepło / Ton',
   voiceInstallMore: '📲 Pobierz głosy HD',
   voiceInstallTip: 'Wskazówka: pobierz głos Google HD/Neural w telefonie, aby brzmiał jeszcze naturalniej.',
+  micBtnTitle: 'Powiedz polecenie lub pytanie',
+  handsfreeChip: 'Wolne ręce',
+  voiceHandsfreeLabel: 'Ciągłe słuchanie podczas jazdy (handsfree)',
+  voiceListeningPrompt: 'Słucham... Powiedz np. "cicho", "ile jeszcze?" lub "paliwo"',
+  voiceNoPermission: 'Brak zgody na mikrofon. Włącz mikrofon w ustawieniach.',
+  voiceUnavailable: 'Rozpoznawanie mowy niedostępne. Wybierz polecenie poniżej.',
+  voiceDidNotCatch: 'Nie zrozumiałem, spróbuj ponownie.',
+  voiceQuickHint1: 'Cicho',
+  voiceQuickHint2: 'Ile jeszcze?',
+  voiceQuickHint3: 'Szukaj paliwa',
 };
 
 const TR: TranslationBundle = {
@@ -1100,6 +1170,16 @@ const TR: TranslationBundle = {
   voicePitchLabel: 'Sıcaklık / Ton',
   voiceInstallMore: '📲 HD sesleri aç',
   voiceInstallTip: 'İpucu: En doğal ses için telefonunuza bir Google HD/Neural ses indirin.',
+  micBtnTitle: 'Komut veya soru söyleyin',
+  handsfreeChip: 'Eller serbest',
+  voiceHandsfreeLabel: 'Sürüş sırasında sürekli dinleme (handsfree)',
+  voiceListeningPrompt: 'Dinliyorum... Örneğin "sus", "ne kadar kaldı?" veya "yakıt" deyin',
+  voiceNoPermission: 'Mikrofon izni reddedildi. Lütfen ayarlardan izin verin.',
+  voiceUnavailable: 'Konuşma tanıma kullanılamıyor. Aşağıdan hızlı bir komut seçin.',
+  voiceDidNotCatch: 'Tam anlayamadım, lütfen tekrar deneyin.',
+  voiceQuickHint1: 'Sus',
+  voiceQuickHint2: 'Ne kadar kaldı?',
+  voiceQuickHint3: 'Yakıt ara',
 };
 
 const DICTIONARIES: Record<LanguageCode, TranslationBundle> = { nl: NL, en: EN, de: DE, fr: FR, es: ES, pl: PL, tr: TR };

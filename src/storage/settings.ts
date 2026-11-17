@@ -68,6 +68,7 @@ export function createDefaultSettings(): AppSettings {
     units: 'metric',
     mapTheme: 'night',
     voiceEnabled: true,
+    voiceHandsfree: false,
     voiceStyle: 'smooth',
     voiceRate: VOICE_STYLE_PRESETS.smooth.rate,
     voicePitch: VOICE_STYLE_PRESETS.smooth.pitch,
