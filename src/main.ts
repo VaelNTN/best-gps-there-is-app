@@ -2,7 +2,13 @@ import './style.css';
 import { SUPPORTED_LANGUAGES, t } from './i18n/translations';
 import { MapController } from './map/mapController';
 import { fetchNearbyPois, parseCoordinatesInput, PoiFilterKind, reverseGeocode, searchPlaces } from './services/geocoding';
-import { DEFAULT_FALLBACK_FIX, GpsWatcher, requestInitialGpsFix } from './services/location';
+import {
+  angleDiffDeg,
+  DEFAULT_FALLBACK_FIX,
+  filterGpsFix,
+  GpsWatcher,
+  requestInitialGpsFix,
+} from './services/location';
 import { radioEngine, RadioSnapshot } from './services/radioEngine';
 import { fetchRoadSignsAround, renderRoadSignSvg } from './services/roadSigns';
 import { calculateRoutes, computeBearing, distanceToRouteMeters, haversineMeters } from './services/routing';
@@ -80,6 +86,7 @@ class BestGpsApp {
   private lastSpokenStepKey = '';
   private lastSpokenNavInstruction = '';
   private lastRerouteAt = 0;
+  private offRouteStreak = 0;
 
   private isListening = false;
   private handsfreeLoopActive = false;
@@ -1209,6 +1216,8 @@ class BestGpsApp {
     }
 
     if (route) {
+      const analysis = route.analysis;
+      const showSaved = analysis && (analysis.savedMeters >= 300 || analysis.savedSeconds >= 30);
       return `
         <div class="bottom-sheet">
           <div class="route-summary-row">
@@ -1222,8 +1231,33 @@ class BestGpsApp {
             </button>
           </div>
 
+          ${
+            analysis
+              ? `
+            <div class="route-best-row">
+              <span class="route-best-pill">🏆 ${this.escapeHtml(bundle.routeBestOfLabel(analysis.evaluatedCount))} • ${this.escapeHtml(bundle.routeZeroDetourLabel)}</span>
+              ${
+                showSaved
+                  ? `<span class="route-saved-pill">⚡ ${this.escapeHtml(
+                      bundle.routeSavedVsAlt(
+                        this.formatDistance(analysis.savedMeters),
+                        this.formatDuration(analysis.savedSeconds)
+                      )
+                    )}</span>`
+                  : ''
+              }
+            </div>
+          `
+              : ''
+          }
+
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--muted);">
             <span>${bundle.modes[route.mode]} • ${bundle.providerLabel}: <b>${route.provider}</b></span>
+            ${
+              this.hasLiveGps
+                ? `<span class="gps-acc-pill" style="color:var(--green);">• 📡 ±${Math.round(this.currentFix.accuracyM)}m</span>`
+                : ''
+            }
             ${
               this.routes.length > 1
                 ? this.routes
@@ -1281,8 +1315,8 @@ class BestGpsApp {
       <div class="bottom-sheet" style="padding:9px 14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <span style="font-size:12px;color:var(--muted);">${bundle.tapMapHint}</span>
-          <span style="font-size:11px;font-weight:800;color:${this.hasLiveGps ? 'var(--green)' : 'var(--amber)'};white-space:nowrap;">
-            ● ${this.hasLiveGps ? bundle.gpsActive : 'GPS Demo'}
+          <span class="gps-acc-pill" style="color:${this.hasLiveGps ? 'var(--green)' : 'var(--amber)'};">
+            ● ${this.hasLiveGps ? `${bundle.gpsActive} (📡 ±${Math.round(this.currentFix.accuracyM)}m)` : 'GPS Demo'}
           </span>
         </div>
       </div>
@@ -1411,7 +1445,11 @@ class BestGpsApp {
               </div>
               <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 ${bundle.etaLabel}: <b>${this.formatEta(progress.remainingSeconds)}</b> • ${bundle.modes[this.settings.mode]}${
-                  this.isSimulating ? ' (DEMO)' : ''
+                  this.isSimulating
+                    ? ' (DEMO)'
+                    : this.hasLiveGps
+                      ? ` • <span style="color:var(--green);font-weight:800;">📡 ±${Math.round(this.currentFix.accuracyM)}m</span>`
+                      : ''
                 }
               </div>
             </div>
@@ -1925,6 +1963,7 @@ class BestGpsApp {
     this.isNavigating = true;
     this.isSimulating = simulate;
     this.followCamera = true;
+    this.offRouteStreak = 0;
     this.lastSpokenStepKey = '';
     this.lastHudRenderAt = 0;
 
@@ -2007,6 +2046,7 @@ class BestGpsApp {
   private stopNavigation(arrived = false): void {
     this.isNavigating = false;
     this.isSimulating = false;
+    this.offRouteStreak = 0;
     if (this.simTimer !== null) {
       window.clearInterval(this.simTimer);
       this.simTimer = null;
@@ -2023,12 +2063,15 @@ class BestGpsApp {
 
   private handleIncomingFix(fix: GpsFix): void {
     const prev = this.currentFix;
-    const distMoved = haversineMeters(prev, fix);
-    const dtSec = (fix.timestamp - prev.timestamp) / 1000;
+    const filtered = fix.isSimulated ? fix : filterGpsFix(fix, this.hasLiveGps ? prev : null);
+    if (!filtered) return;
+
+    const distMoved = haversineMeters(prev, filtered);
+    const dtSec = (filtered.timestamp - prev.timestamp) / 1000;
 
     // Fallback delta speed if device omits coords.speed (common on some Android WebViews)
-    let resolvedSpeedKmh = fix.speedKmh;
-    if (!fix.isSimulated && resolvedSpeedKmh === 0 && dtSec >= 0.6 && dtSec <= 8 && fix.accuracyM <= 45) {
+    let resolvedSpeedKmh = filtered.speedKmh;
+    if (!filtered.isSimulated && resolvedSpeedKmh === 0 && dtSec >= 0.6 && dtSec <= 8 && filtered.accuracyM <= 45) {
       if (distMoved >= 2.2) {
         const calc = Math.round((distMoved / dtSec) * 3.6);
         if (calc > 0 && calc < 220) {
@@ -2038,14 +2081,47 @@ class BestGpsApp {
     }
 
     const computedHeading =
-      fix.heading !== null
-        ? fix.heading
+      filtered.heading !== null
+        ? filtered.heading
         : distMoved > 4
-          ? computeBearing(prev, fix)
+          ? computeBearing(prev, filtered)
           : prev.heading;
 
-    this.currentFix = { ...fix, speedKmh: resolvedSpeedKmh, heading: computedHeading };
-    if (!fix.isSimulated) this.hasLiveGps = true;
+    let nextFix: GpsFix = {
+      ...filtered,
+      speedKmh: resolvedSpeedKmh,
+      heading: computedHeading,
+      snappedToRoad: false,
+    };
+
+    const activeRoute = this.isNavigating ? this.routes[this.selectedRouteIdx] : undefined;
+    if (this.isNavigating && activeRoute && !filtered.isSimulated) {
+      const snap = distanceToRouteMeters({ lat: filtered.lat, lon: filtered.lon }, activeRoute.coordinates);
+      const snapThresholdM = Math.min(35, Math.max(18, filtered.accuracyM * 1.25));
+      if (snap.minMeters <= snapThresholdM) {
+        this.offRouteStreak = 0;
+        const alignedHeading =
+          computedHeading === null ||
+          resolvedSpeedKmh < 8 ||
+          angleDiffDeg(computedHeading, snap.segmentBearing) <= 70
+            ? snap.segmentBearing
+            : computedHeading;
+        nextFix = {
+          ...nextFix,
+          lat: snap.snappedLat,
+          lon: snap.snappedLon,
+          heading: alignedHeading,
+          snappedToRoad: true,
+        };
+      } else if (snap.minMeters > 55) {
+        this.offRouteStreak += 1;
+      } else {
+        this.offRouteStreak = 0;
+      }
+    }
+
+    this.currentFix = nextFix;
+    if (!filtered.isSimulated) this.hasLiveGps = true;
 
     this.mapCtrl?.updateGpsFix(this.currentFix, this.isNavigating && this.followCamera);
     void this.refreshRoadSigns(false);
@@ -2057,14 +2133,19 @@ class BestGpsApp {
       }
       return;
     }
-    const route = this.routes[this.selectedRouteIdx];
+    const route = activeRoute;
     if (!route) return;
 
     const bundle = t(this.settings.language);
-    const snap = distanceToRouteMeters({ lat: fix.lat, lon: fix.lon }, route.coordinates);
 
-    // Off-route detection (> 70m) -> automatic reroute
-    if (!fix.isSimulated && this.settings.autoReroute && snap.minMeters > 70 && Date.now() - this.lastRerouteAt > 12_000) {
+    // Off-route hysteresis (2 consecutive fixes > 55m) -> automatic reroute without urban-canyon jitter triggers
+    if (
+      !filtered.isSimulated &&
+      this.settings.autoReroute &&
+      this.offRouteStreak >= 2 &&
+      Date.now() - this.lastRerouteAt > 12_000
+    ) {
+      this.offRouteStreak = 0;
       this.lastRerouteAt = Date.now();
       this.showToast(bundle.rerouting);
       void voiceNav.speak(bundle.rerouting, this.settings, true);
@@ -2074,7 +2155,7 @@ class BestGpsApp {
 
     // Check arrival (< 35m from end)
     const endCoord = route.coordinates[route.coordinates.length - 1];
-    if (endCoord && haversineMeters(fix, { lat: endCoord[1], lon: endCoord[0] }) < 35) {
+    if (endCoord && haversineMeters(this.currentFix, { lat: endCoord[1], lon: endCoord[0] }) < 35) {
       this.stopNavigation(true);
       this.showToast(`🏁 ${bundle.arrived}`);
       void voiceNav.speak(bundle.arrived, this.settings, true);
@@ -2096,7 +2177,7 @@ class BestGpsApp {
     }
 
     const now = Date.now();
-    if (!fix.isSimulated || now - this.lastHudRenderAt >= 350) {
+    if (!filtered.isSimulated || now - this.lastHudRenderAt >= 350) {
       this.lastHudRenderAt = now;
       this.renderUi();
     } else {

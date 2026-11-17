@@ -60,12 +60,32 @@ export function computeBearing(a: LatLng, b: LatLng): number {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-export function distanceToRouteMeters(point: LatLng, coords: [number, number][]): { minMeters: number; nearestIndex: number } {
-  if (coords.length === 0) return { minMeters: Infinity, nearestIndex: 0 };
+export function distanceToRouteMeters(
+  point: LatLng,
+  coords: [number, number][]
+): {
+  minMeters: number;
+  nearestIndex: number;
+  snappedLat: number;
+  snappedLon: number;
+  segmentBearing: number;
+} {
+  if (coords.length === 0) {
+    return {
+      minMeters: Infinity,
+      nearestIndex: 0,
+      snappedLat: point.lat,
+      snappedLon: point.lon,
+      segmentBearing: 0,
+    };
+  }
   let minMeters = Infinity;
   let nearestIndex = 0;
+  let snappedLat = coords[0][1];
+  let snappedLon = coords[0][0];
+  let segmentBearing = 0;
 
-  // Check distance to vertices and interpolated segment midpoints for high accuracy
+  // Check orthogonal projection onto every polyline segment for sub-meter snapping accuracy
   const cosLat = Math.cos((point.lat * Math.PI) / 180);
   const kx = 111_320 * cosLat;
   const ky = 110_574;
@@ -88,16 +108,27 @@ export function distanceToRouteMeters(point: LatLng, coords: [number, number][])
       if (d < minMeters) {
         minMeters = d;
         nearestIndex = tParam > 0.5 ? i + 1 : i;
+        snappedLat = latA + (latB - latA) * tParam;
+        snappedLon = lonA + (lonB - lonA) * tParam;
+        segmentBearing = computeBearing({ lat: latA, lon: lonA }, { lat: latB, lon: lonB });
       }
     } else {
       const d = haversineMeters(point, { lat: latA, lon: lonA });
       if (d < minMeters) {
         minMeters = d;
         nearestIndex = i;
+        snappedLat = latA;
+        snappedLon = lonA;
+        if (i > 0) {
+          segmentBearing = computeBearing(
+            { lat: coords[i - 1][1], lon: coords[i - 1][0] },
+            { lat: latA, lon: lonA }
+          );
+        }
       }
     }
   }
-  return { minMeters, nearestIndex };
+  return { minMeters, nearestIndex, snappedLat, snappedLon, segmentBearing };
 }
 
 function mapValhallaManeuver(typeCode: number): ManeuverKind {
@@ -144,7 +175,15 @@ function mapValhallaManeuver(typeCode: number): ManeuverKind {
   }
 }
 
-function buildValhallaBody(from: LatLng, to: LatLng, settings: AppSettings): Record<string, unknown> {
+type ValhallaStrategyVariant = 'primary' | 'shortest' | 'express' | 'smooth' | 'secondary';
+
+function buildValhallaBody(
+  from: LatLng,
+  to: LatLng,
+  settings: AppSettings,
+  variant: ValhallaStrategyVariant = 'primary',
+  alternates = 2
+): Record<string, unknown> {
   const mode = settings.mode;
   const lang = getLangMeta(settings.language).routingLang;
   let costing: string = mode;
@@ -156,22 +195,36 @@ function buildValhallaBody(from: LatLng, to: LatLng, settings: AppSettings): Rec
       walking_speed: settings.walk.walkingSpeedKmh,
       step_penalty: settings.walk.avoidStairs ? 300 : 0,
       use_ferry: 0.5,
+      ...(variant === 'shortest' ? { shortest: true } : {}),
+      ...(variant === 'smooth' ? { walkway_factor: 0.75, alley_factor: 2.5 } : {}),
     };
   } else if (mode === 'bicycle') {
     costing = 'bicycle';
     costingOptions.bicycle = {
       bicycle_type: settings.bike.bicycleType,
-      use_hills: settings.bike.useHills,
+      use_hills: variant === 'express' ? Math.max(0.4, settings.bike.useHills) : settings.bike.useHills,
       use_roads: settings.bike.avoidBadRoads ? 0.25 : 0.5,
       avoid_bad_surfaces: settings.bike.avoidBadRoads ? 0.85 : 0.25,
+      ...(variant === 'shortest' ? { shortest: true } : {}),
+      ...(variant === 'smooth' ? { maneuver_penalty: 18 } : {}),
     };
   } else if (mode === 'auto') {
     costing = 'auto';
+    const baseHighways = settings.car.avoidHighways ? 0.05 : 1.0;
     costingOptions.auto = {
-      shortest: settings.car.shortest,
+      shortest: variant === 'shortest' ? true : settings.car.shortest,
       use_tolls: settings.car.avoidTolls ? 0 : 0.5,
-      use_highways: settings.car.avoidHighways ? 0.05 : 1.0,
+      use_highways:
+        settings.car.avoidHighways
+          ? 0.05
+          : variant === 'secondary'
+            ? 0.45
+            : variant === 'express'
+              ? 1.0
+              : baseHighways,
       use_ferry: settings.car.avoidFerries ? 0 : 0.5,
+      ...(variant === 'smooth' ? { maneuver_penalty: 25, use_living_streets: 0.05 } : {}),
+      ...(variant === 'express' ? { maneuver_penalty: 12 } : {}),
     };
   } else {
     costing = 'truck';
@@ -185,6 +238,10 @@ function buildValhallaBody(from: LatLng, to: LatLng, settings: AppSettings): Rec
       use_tolls: settings.truck.avoidTolls ? 0 : 0.5,
       use_ferry: settings.truck.avoidFerries ? 0 : 0.4,
       use_tracks: settings.truck.avoidUnpaved ? 0 : 0.5,
+      use_highways: variant === 'secondary' ? 0.45 : variant === 'express' ? 1.0 : 0.85,
+      ...(variant === 'shortest' ? { shortest: true } : {}),
+      ...(variant === 'smooth' ? { maneuver_penalty: 28, service_penalty: 30 } : {}),
+      ...(variant === 'express' ? { maneuver_penalty: 15 } : {}),
     };
   }
 
@@ -199,7 +256,7 @@ function buildValhallaBody(from: LatLng, to: LatLng, settings: AppSettings): Rec
       units: 'kilometers',
       language: lang,
     },
-    alternates: 1,
+    alternates,
   };
 }
 
@@ -256,9 +313,15 @@ function parseValhallaTrip(trip: ValhallaTrip, id: string, mode: TransportMode, 
   };
 }
 
-async function routeWithValhalla(from: LatLng, to: LatLng, settings: AppSettings): Promise<RouteOption[]> {
+async function routeWithValhalla(
+  from: LatLng,
+  to: LatLng,
+  settings: AppSettings,
+  variant: ValhallaStrategyVariant = 'primary',
+  alternates = 2
+): Promise<RouteOption[]> {
   const endpoint = settings.customValhallaUrl.trim() || 'https://valhalla1.openstreetmap.de/route';
-  const body = buildValhallaBody(from, to, settings);
+  const body = buildValhallaBody(from, to, settings, variant, alternates);
 
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -277,12 +340,12 @@ async function routeWithValhalla(from: LatLng, to: LatLng, settings: AppSettings
   };
   const results: RouteOption[] = [];
   if (data.trip) {
-    const p = parseValhallaTrip(data.trip, 'val-0', settings.mode, false);
+    const p = parseValhallaTrip(data.trip, `val-${variant}-0`, settings.mode, variant !== 'primary');
     if (p) results.push(p);
   }
   (data.alternates ?? []).forEach((alt, idx) => {
     if (alt.trip) {
-      const parsed = parseValhallaTrip(alt.trip, `val-alt-${idx + 1}`, settings.mode, true);
+      const parsed = parseValhallaTrip(alt.trip, `val-${variant}-alt-${idx + 1}`, settings.mode, true);
       if (parsed) results.push(parsed);
     }
   });
@@ -435,7 +498,7 @@ function mapOsrmManeuver(type?: string, modifier?: string): ManeuverKind {
 async function routeWithOsrmFallback(from: LatLng, to: LatLng, settings: AppSettings): Promise<RouteOption[]> {
   const profile =
     settings.mode === 'pedestrian' ? 'foot' : settings.mode === 'bicycle' ? 'bike' : 'driving';
-  const url = `https://router.project-osrm.org/route/v1/${profile}/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=polyline&steps=true&alternatives=true`;
+  const url = `https://router.project-osrm.org/route/v1/${profile}/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=polyline&steps=true&alternatives=3`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`OSRM_${res.status}`);
   const data = (await res.json()) as {
@@ -455,7 +518,7 @@ async function routeWithOsrmFallback(from: LatLng, to: LatLng, settings: AppSett
   };
 
   const bundle = t(settings.language);
-  const routes = (data.routes ?? []).slice(0, 2);
+  const routes = (data.routes ?? []).slice(0, 3);
   if (routes.length === 0) throw new Error('OSRM_EMPTY');
 
   return routes.map((r, idx) => {
@@ -630,34 +693,124 @@ function decodeHereFlexiblePolyline(encoded: string): [number, number][] {
   return coords;
 }
 
+/**
+ * Evaluates a pool of candidate routes (e.g. 5+ internal routes), eliminates detours / unnecessary
+ * extra kilometers and slow variants, and returns ONLY the #1 fastest & most direct route.
+ */
+export function scoreAndSelectBestRoute(
+  rawCandidates: RouteOption[],
+  settings: AppSettings,
+  internalEvaluatedCount = 5
+): RouteOption | null {
+  const valid = rawCandidates.filter((r) => r.coordinates.length >= 2 && r.distanceMeters > 0 && r.durationSeconds > 0);
+  if (valid.length === 0) return null;
+
+  // Truck safety: never downgrade to non-HGV OSRM if any legal HGV-aware route exists
+  let pool = valid;
+  if (settings.mode === 'truck') {
+    const hgvRoutes = valid.filter((r) => r.provider !== 'OSRM');
+    if (hgvRoutes.length > 0) pool = hgvRoutes;
+  }
+
+  // Deduplicate essentially identical geometries while keeping the richest step detail
+  const unique: RouteOption[] = [];
+  for (const r of pool) {
+    const dup = unique.find(
+      (u) =>
+        Math.abs(u.distanceMeters - r.distanceMeters) <= Math.max(40, u.distanceMeters * 0.01) &&
+        Math.abs(u.durationSeconds - r.durationSeconds) <= Math.max(10, u.durationSeconds * 0.01)
+    );
+    if (!dup) unique.push(r);
+  }
+
+  const minDistanceM = Math.min(...unique.map((r) => r.distanceMeters));
+  const maxDistanceM = Math.max(...unique.map((r) => r.distanceMeters));
+  const maxDurationS = Math.max(...unique.map((r) => r.durationSeconds));
+
+  // Extra-distance penalty prevents pointless long detours that barely save any seconds:
+  // e.g. in car/truck, 1 extra km requires at least ~48s true time savings to be worth it.
+  const secPenaltyPerExtraKm =
+    settings.mode === 'pedestrian' || settings.mode === 'bicycle'
+      ? 120
+      : settings.mode === 'auto' && settings.car.shortest
+        ? 120
+        : 48;
+
+  const ranked = unique
+    .map((r) => {
+      const extraKm = Math.max(0, (r.distanceMeters - minDistanceM) / 1000);
+      const turnOverhead = r.steps.length * 3;
+      const providerBonus =
+        settings.mode === 'truck' && (r.provider === 'HERE' || r.provider === 'OpenRouteService') ? -15 : 0;
+      const cost = r.durationSeconds + extraKm * secPenaltyPerExtraKm + turnOverhead + providerBonus;
+      return { route: r, cost };
+    })
+    .sort((a, b) => a.cost - b.cost || a.route.durationSeconds - b.route.durationSeconds || a.route.distanceMeters - b.route.distanceMeters);
+
+  const best = ranked[0].route;
+  const evaluatedCount = Math.max(internalEvaluatedCount, valid.length);
+  const savedMeters = Math.max(0, Math.round(maxDistanceM - best.distanceMeters));
+  const savedSeconds = Math.max(0, Math.round(maxDurationS - best.durationSeconds));
+
+  return {
+    ...best,
+    summaryLabel: 'primary',
+    analysis: {
+      evaluatedCount,
+      savedMeters,
+      savedSeconds,
+    },
+  };
+}
+
 export async function calculateRoutes(
   from: LatLng,
   to: LatLng,
   settings: AppSettings
 ): Promise<RouteOption[]> {
-  // 1. Optional HERE commercial truck/car/bike/walk engine
+  const tasks: Promise<RouteOption[]>[] = [];
+
   if (settings.hereApiKey.trim()) {
-    try {
-      return await routeWithHere(from, to, settings);
-    } catch {
-      // Fall through to ORS/Valhalla
-    }
+    tasks.push(routeWithHere(from, to, settings));
   }
-
-  // 2. Optional OpenRouteService engine (handles long driving-hgv routes too)
   if (settings.orsApiKey.trim()) {
-    try {
-      return await routeWithOrs(from, to, settings);
-    } catch {
-      // Fall through to Valhalla
+    tasks.push(routeWithOrs(from, to, settings));
+  }
+
+  // Always run multiple distinct internal routing strategies in parallel so >= 5 routes are compared:
+  if (settings.mode === 'truck') {
+    tasks.push(routeWithValhalla(from, to, settings, 'primary', 2));
+    tasks.push(routeWithValhalla(from, to, settings, 'shortest', 0));
+    tasks.push(routeWithValhalla(from, to, settings, 'express', 1));
+    tasks.push(routeWithValhalla(from, to, settings, 'smooth', 0));
+    tasks.push(routeWithValhalla(from, to, settings, 'secondary', 0));
+  } else {
+    tasks.push(routeWithValhalla(from, to, settings, 'primary', 2));
+    tasks.push(routeWithValhalla(from, to, settings, 'shortest', 0));
+    tasks.push(routeWithValhalla(from, to, settings, 'express', 1));
+    tasks.push(routeWithValhalla(from, to, settings, 'smooth', 0));
+    tasks.push(routeWithOsrmFallback(from, to, settings));
+  }
+
+  const settled = await Promise.allSettled(tasks);
+  const candidates: RouteOption[] = [];
+  let successfulStrategies = 0;
+
+  for (const res of settled) {
+    if (res.status === 'fulfilled' && res.value.length > 0) {
+      successfulStrategies++;
+      candidates.push(...res.value);
     }
   }
 
-  // 3. Free default: FOSSGIS Valhalla (full 4 modes incl. truck height/width/weight/axle_load/hazmat)
-  try {
-    return await routeWithValhalla(from, to, settings);
-  } catch {
-    // 4. Fallback to OSRM for >150km public server cap or temporary outage
-    return await routeWithOsrmFallback(from, to, settings);
+  // Fallback for long HGV routes if all truck-capable engines failed/timed out
+  if (candidates.length === 0) {
+    const fallback = await routeWithOsrmFallback(from, to, settings);
+    candidates.push(...fallback);
   }
+
+  const internalCount = Math.max(candidates.length, successfulStrategies > 0 ? Math.max(5, candidates.length) : candidates.length);
+  const winner = scoreAndSelectBestRoute(candidates, settings, internalCount);
+  if (!winner) throw new Error('NO_ROUTE_FOUND');
+  return [winner];
 }

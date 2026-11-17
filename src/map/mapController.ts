@@ -236,7 +236,10 @@ export class MapController {
       this.gpsMarker.setLngLat([fix.lon, fix.lat]);
     }
 
-    const cone = this.gpsMarker.getElement().querySelector<HTMLElement>('.gps-cone');
+    const puckEl = this.gpsMarker.getElement();
+    puckEl.classList.toggle('snapped', Boolean(fix.snappedToRoad));
+
+    const cone = puckEl.querySelector<HTMLElement>('.gps-cone');
     if (cone && fix.heading !== null) {
       const relativeRot = followInNav ? 0 : fix.heading - this.map.getBearing();
       cone.style.transform = `translate(-50%, -85%) rotate(${relativeRot}deg)`;
@@ -251,7 +254,7 @@ export class MapController {
         zoom: 16.4,
         pitch: 52,
         bearing: fix.heading ?? this.map.getBearing(),
-        duration: fix.isSimulated ? 130 : 350,
+        duration: fix.isSimulated ? 130 : 380,
         easing: (x) => x,
       });
     }

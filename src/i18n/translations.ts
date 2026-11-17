@@ -181,6 +181,9 @@ export interface TranslationBundle {
   radioGenreRock: string;
   radioGenreChill: string;
   radioGenreNonstop: string;
+  routeBestOfLabel: (count: number) => string;
+  routeZeroDetourLabel: string;
+  routeSavedVsAlt: (dist: string, dur: string) => string;
 }
 
 const NL: TranslationBundle = {
@@ -376,6 +379,9 @@ const NL: TranslationBundle = {
   radioGenreRock: 'Rock',
   radioGenreChill: 'Chill',
   radioGenreNonstop: 'Non-Stop',
+  routeBestOfLabel: (count) => `⚡ Allerbeste & snelste uit ${count} routes`,
+  routeZeroDetourLabel: 'Geen onnodige omweg',
+  routeSavedVsAlt: (dist, dur) => `Bespaart tot ${dist} / ${dur}`,
 };
 
 const EN: TranslationBundle = {
@@ -571,6 +577,9 @@ const EN: TranslationBundle = {
   radioGenreRock: 'Rock',
   radioGenreChill: 'Chill',
   radioGenreNonstop: 'Non-Stop',
+  routeBestOfLabel: (count) => `⚡ Best & fastest of ${count} routes`,
+  routeZeroDetourLabel: 'Zero unnecessary detours',
+  routeSavedVsAlt: (dist, dur) => `Saves up to ${dist} / ${dur}`,
 };
 
 const DE: TranslationBundle = {

@@ -108,6 +108,11 @@ export interface RouteOption {
   hasTolls?: boolean;
   hasFerries?: boolean;
   fallbackNotice?: string;
+  analysis?: {
+    evaluatedCount: number;
+    savedMeters: number;
+    savedSeconds: number;
+  };
 }
 
 export type RoadSignKind =
@@ -200,4 +205,5 @@ export interface GpsFix {
   accuracyM: number;
   timestamp: number;
   isSimulated?: boolean;
+  snappedToRoad?: boolean;
 }
