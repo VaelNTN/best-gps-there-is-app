@@ -8,13 +8,17 @@ import { calculateRoutes, computeBearing, distanceToRouteMeters, haversineMeters
 import { voiceNav } from './services/voice';
 import {
   addRecentPlace,
+  deleteCustomVehicle,
   loadSettings,
   saveSettings,
+  selectCustomVehicle,
   toggleFavoritePlace,
   TRUCK_PRESETS,
+  upsertCustomVehicle,
 } from './storage/settings';
 import {
   AppSettings,
+  CustomVehicle,
   GeocodedPlace,
   GpsFix,
   LatLng,
@@ -26,7 +30,7 @@ import {
   TruckPresetId,
 } from './types/navigation';
 
-type ModalKind = null | 'vehicle' | 'saved' | 'settings';
+type ModalKind = null | 'vehicle' | 'vehicles' | 'saved' | 'settings';
 
 class BestGpsApp {
   private root: HTMLElement;
@@ -72,7 +76,9 @@ class BestGpsApp {
 
   private modal: ModalKind = null;
   private launcherOpen = true;
+  private launcherTab: 'modes' | 'vehicles' = 'modes';
   private quickSetupMode: TransportMode | null = null;
+  private editingVehicle: CustomVehicle | null = null;
   private toastTimer = 0;
 
   constructor(root: HTMLElement) {
@@ -262,8 +268,11 @@ class BestGpsApp {
         </div>
 
         <div class="chips-strip">
-          <button class="pill-chip ${this.settings.mode === 'truck' ? 'highlight' : ''}" id="btn-open-vehicle">
-            ⚙️ ${this.settings.mode === 'truck' ? truckSummary : bundle.vehicleSettings}
+          <button class="pill-chip ${this.settings.mode === 'truck' ? 'highlight' : ''}" id="btn-open-vehicles">
+            🚛 ${bundle.vehiclesTab} (${this.settings.savedVehicles.length})${this.settings.mode === 'truck' ? ` • ${truckSummary}` : ''}
+          </button>
+          <button class="pill-chip" id="btn-open-vehicle">
+            ⚙️ ${bundle.vehicleSettings}
           </button>
           <button class="pill-chip ${this.settings.showRoadSigns ? 'active' : ''}" id="btn-toggle-signs">
             🚸 ${bundle.roadSignsChip}${this.settings.showRoadSigns && this.roadSigns.length > 0 ? ` (${this.roadSigns.length})` : ''}
@@ -389,12 +398,29 @@ class BestGpsApp {
           <div class="launcher-header">
             <div>
               <div class="launcher-brand">🧭 ${bundle.appTitle}</div>
-              <h1 class="launcher-title">${bundle.chooseModeTitle}</h1>
-              <p class="launcher-sub">${bundle.chooseModeSub}</p>
+              <h1 class="launcher-title">${
+                this.launcherTab === 'vehicles' ? bundle.myVehiclesTitle : bundle.chooseModeTitle
+              }</h1>
+              <p class="launcher-sub">${
+                this.launcherTab === 'vehicles' ? bundle.vehicleRoutingNote : bundle.chooseModeSub
+              }</p>
             </div>
             <button type="button" class="round-icon-btn" id="btn-launcher-settings" title="${bundle.settingsTitle}">🌐</button>
           </div>
 
+          <div class="launcher-tabs">
+            <button type="button" class="launcher-tab-btn ${this.launcherTab === 'modes' ? 'active' : ''}" data-launch-tab="modes">
+              🧭 ${bundle.chooseModeTab}
+            </button>
+            <button type="button" class="launcher-tab-btn ${this.launcherTab === 'vehicles' ? 'active' : ''}" data-launch-tab="vehicles">
+              🚛 ${bundle.vehiclesTab} (${this.settings.savedVehicles.length})
+            </button>
+          </div>
+
+          ${
+            this.launcherTab === 'vehicles'
+              ? `<div id="launcher-vehicles-body">${this.renderVehiclesTabBody(bundle)}</div>`
+              : `
           <div class="launcher-grid">
             ${modes
               .map((m) => {
@@ -419,6 +445,8 @@ class BestGpsApp {
               })
               .join('')}
           </div>
+          `
+          }
 
           <div class="launcher-footer">
             <div class="quick-lang-strip">
@@ -442,6 +470,238 @@ class BestGpsApp {
         </div>
       </div>
     `;
+  }
+
+  private renderVehiclesTabBody(bundle: ReturnType<typeof t>): string {
+    if (this.editingVehicle) {
+      const ev = this.editingVehicle;
+      const p = ev.profile;
+      const icons = ['🚛', '🚚', '🚐', '🚌', '🚜'];
+      const presets: [TruckPresetId, string][] = [
+        ['van', bundle.presetVan],
+        ['box12', bundle.presetBox12],
+        ['semi40', bundle.presetSemi40],
+        ['lzv60', bundle.presetLzv60],
+        ['camper', bundle.presetCamper],
+      ];
+      const isExisting = this.settings.savedVehicles.some((v) => v.id === ev.id);
+
+      return `
+        <div class="vehicle-editor-box">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <strong style="font-size:14px;">${isExisting ? `✏️ ${bundle.editVehicleTitle}` : `➕ ${bundle.newVehicleTitle}`}</strong>
+            <button type="button" class="secondary-btn" id="btn-veh-cancel" style="padding:6px 10px;">← ${bundle.backLabel}</button>
+          </div>
+
+          <div class="quick-chips-row">
+            ${presets
+              .map(
+                ([id, label]) => `
+              <button type="button" class="pill-chip ${p.presetId === id ? 'highlight' : ''}" data-veh-preset="${id}">${label}</button>
+            `
+              )
+              .join('')}
+          </div>
+
+          <label class="field">${bundle.vehicleNameLabel}
+            <input id="veh-in-name" type="text" placeholder="${bundle.vehicleNamePlaceholder}" value="${this.escapeHtml(ev.name)}">
+          </label>
+
+          <div class="icon-picker-row">
+            ${icons
+              .map(
+                (ico) => `
+              <button type="button" class="icon-pick-btn ${ev.icon === ico ? 'active' : ''}" data-veh-icon="${ico}">${ico}</button>
+            `
+              )
+              .join('')}
+          </div>
+
+          <div class="form-grid">
+            <label class="field">${bundle.heightM}<input id="veh-in-h" type="number" step="0.05" min="1.5" max="5.0" value="${p.heightM}"></label>
+            <label class="field">${bundle.widthM}<input id="veh-in-w" type="number" step="0.05" min="1.5" max="3.8" value="${p.widthM}"></label>
+            <label class="field">${bundle.lengthM}<input id="veh-in-l" type="number" step="0.25" min="3.0" max="35.0" value="${p.lengthM}"></label>
+            <label class="field">${bundle.weightT}<input id="veh-in-wt" type="number" step="0.5" min="1.5" max="90.0" value="${p.weightT}"></label>
+            <label class="field">${bundle.axleLoadT}<input id="veh-in-ax" type="number" step="0.5" min="1.0" max="15.0" value="${p.axleLoadT}"></label>
+          </div>
+
+          <div class="quick-chips-row">
+            <button type="button" class="quick-chip ${p.hazmat ? 'active-amber' : ''}" data-veh-toggle="hazmat">☣️ ${bundle.hazmatAdr}</button>
+            <button type="button" class="quick-chip ${p.avoidUnpaved ? 'active-amber' : ''}" data-veh-toggle="avoidUnpaved">🪨 ${bundle.avoidUnpaved}</button>
+            <button type="button" class="quick-chip ${p.avoidTolls ? 'active-amber' : ''}" data-veh-toggle="avoidTolls">🛣️ ${bundle.avoidTolls}</button>
+            <button type="button" class="quick-chip ${p.avoidFerries ? 'active-amber' : ''}" data-veh-toggle="avoidFerries">⛴️ ${bundle.avoidFerries}</button>
+          </div>
+
+          <button type="button" class="primary-btn" id="btn-veh-save" style="width:100%;">✅ ${bundle.saveSettings}</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <span style="font-size:12px;color:var(--muted);flex:1;">${bundle.vehicleRoutingNote}</span>
+        <button type="button" class="primary-btn" id="btn-veh-add" style="flex:0 0 auto;padding:8px 12px;">➕ ${bundle.addVehicleBtn}</button>
+      </div>
+
+      <div class="vehicles-list">
+        ${this.settings.savedVehicles
+          .map((v) => {
+            const isActive = this.settings.activeVehicleId === v.id;
+            const pr = v.profile;
+            return `
+            <div class="vehicle-card ${isActive ? 'active' : ''}">
+              <div class="vehicle-card-top">
+                <div class="vehicle-card-title">
+                  <span style="font-size:22px;">${v.icon}</span>
+                  <span class="v-name">${this.escapeHtml(v.name)}</span>
+                </div>
+                ${isActive ? `<span class="vehicle-active-tag">✅ ${bundle.activeBadge}</span>` : ''}
+              </div>
+              <div class="vehicle-card-specs">
+                <span>↕️ ${pr.heightM.toFixed(2)}m</span>
+                <span>↔️ ${pr.widthM.toFixed(2)}m</span>
+                <span>📏 ${pr.lengthM.toFixed(1)}m</span>
+                <span>⚖️ ${pr.weightT}t</span>
+                <span>🛞 ${pr.axleLoadT}t</span>
+                ${pr.hazmat ? '<span>☣️ ADR</span>' : ''}
+                ${pr.avoidTolls ? '<span>🛣️✕</span>' : ''}
+                ${pr.avoidFerries ? '<span>⛴️✕</span>' : ''}
+              </div>
+              <div class="vehicle-card-actions">
+                <button type="button" class="primary-btn" data-veh-use="${this.escapeHtml(v.id)}" style="padding:7px 10px;font-size:12px;">
+                  ▶ ${bundle.useVehicleBtn}
+                </button>
+                <button type="button" class="secondary-btn" data-veh-edit="${this.escapeHtml(v.id)}" title="${bundle.editLabel}">✏️</button>
+                ${
+                  this.settings.savedVehicles.length > 1
+                    ? `<button type="button" class="secondary-btn" data-veh-del="${this.escapeHtml(v.id)}" title="${bundle.deleteLabel}">🗑️</button>`
+                    : ''
+                }
+              </div>
+            </div>
+          `;
+          })
+          .join('')}
+      </div>
+    `;
+  }
+
+  private bindVehiclesTabEvents(scope: Element): void {
+    const syncEditorInputs = (): void => {
+      if (!this.editingVehicle) return;
+      const nameEl = scope.querySelector<HTMLInputElement>('#veh-in-name');
+      const h = scope.querySelector<HTMLInputElement>('#veh-in-h');
+      const w = scope.querySelector<HTMLInputElement>('#veh-in-w');
+      const l = scope.querySelector<HTMLInputElement>('#veh-in-l');
+      const wt = scope.querySelector<HTMLInputElement>('#veh-in-wt');
+      const ax = scope.querySelector<HTMLInputElement>('#veh-in-ax');
+      if (nameEl) this.editingVehicle.name = nameEl.value;
+      if (h) this.editingVehicle.profile.heightM = Number(h.value) || 4.0;
+      if (w) this.editingVehicle.profile.widthM = Number(w.value) || 2.55;
+      if (l) this.editingVehicle.profile.lengthM = Number(l.value) || 16.5;
+      if (wt) this.editingVehicle.profile.weightT = Number(wt.value) || 40;
+      if (ax) this.editingVehicle.profile.axleLoadT = Number(ax.value) || 11.5;
+    };
+
+    const refresh = (): void => {
+      if (this.modal === 'vehicles') this.renderModal();
+      else this.renderUi();
+    };
+
+    scope.querySelector('#btn-veh-add')?.addEventListener('click', () => {
+      this.editingVehicle = {
+        id: `veh-${Date.now()}`,
+        name: '',
+        icon: '🚛',
+        profile: { ...this.settings.truck, presetId: 'custom' },
+      };
+      refresh();
+    });
+
+    scope.querySelector('#btn-veh-cancel')?.addEventListener('click', () => {
+      this.editingVehicle = null;
+      refresh();
+    });
+
+    scope.querySelectorAll<HTMLButtonElement>('[data-veh-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!this.editingVehicle) return;
+        syncEditorInputs();
+        const pid = btn.dataset.vehPreset as TruckPresetId;
+        this.editingVehicle.profile = { ...this.editingVehicle.profile, presetId: pid, ...TRUCK_PRESETS[pid] };
+        refresh();
+      });
+    });
+
+    scope.querySelectorAll<HTMLButtonElement>('[data-veh-icon]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!this.editingVehicle) return;
+        syncEditorInputs();
+        this.editingVehicle.icon = btn.dataset.vehIcon || '🚛';
+        refresh();
+      });
+    });
+
+    scope.querySelectorAll<HTMLButtonElement>('[data-veh-toggle]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!this.editingVehicle) return;
+        syncEditorInputs();
+        const k = btn.dataset.vehToggle as 'hazmat' | 'avoidUnpaved' | 'avoidTolls' | 'avoidFerries';
+        this.editingVehicle.profile[k] = !this.editingVehicle.profile[k];
+        refresh();
+      });
+    });
+
+    scope.querySelector('#btn-veh-save')?.addEventListener('click', () => {
+      if (!this.editingVehicle) return;
+      syncEditorInputs();
+      upsertCustomVehicle(this.settings, this.editingVehicle);
+      this.settings.mode = 'truck';
+      this.settings.configuredModes.truck = true;
+      saveSettings(this.settings);
+      this.editingVehicle = null;
+      this.showToast(`🚛 ${t(this.settings.language).activeBadge}: ${this.settings.truck.heightM.toFixed(1)}m / ${this.settings.truck.weightT}t`);
+      refresh();
+      void this.refreshRoadSigns(true);
+      if (this.destination) void this.computeActiveRoute();
+    });
+
+    scope.querySelectorAll<HTMLButtonElement>('[data-veh-use]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const vid = btn.dataset.vehUse!;
+        const selected = selectCustomVehicle(this.settings, vid);
+        if (!selected) return;
+        this.settings.mode = 'truck';
+        this.settings.configuredModes.truck = true;
+        saveSettings(this.settings);
+        this.launcherOpen = false;
+        this.launcherTab = 'modes';
+        this.quickSetupMode = null;
+        this.modal = null;
+        this.showToast(`${selected.icon} ${selected.name}`);
+        this.renderUi();
+        void this.refreshRoadSigns(true);
+        if (this.destination) void this.computeActiveRoute();
+      });
+    });
+
+    scope.querySelectorAll<HTMLButtonElement>('[data-veh-edit]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const v = this.settings.savedVehicles.find((item) => item.id === btn.dataset.vehEdit);
+        if (!v) return;
+        this.editingVehicle = { ...v, profile: { ...v.profile } };
+        refresh();
+      });
+    });
+
+    scope.querySelectorAll<HTMLButtonElement>('[data-veh-del]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        deleteCustomVehicle(this.settings, btn.dataset.vehDel!);
+        refresh();
+        void this.refreshRoadSigns(true);
+        if (this.destination) void this.computeActiveRoute();
+      });
+    });
   }
 
   private renderQuickSetupBody(mode: TransportMode, bundle: ReturnType<typeof t>): string {
@@ -548,8 +808,28 @@ class BestGpsApp {
       ['camper', bundle.presetCamper],
     ];
     return `
+      ${
+        this.settings.savedVehicles.length > 0
+          ? `
+        <div class="quick-setup-section">
+          <div class="quick-setup-label">🚛 ${bundle.myVehiclesTitle}</div>
+          <div class="quick-chips-row">
+            ${this.settings.savedVehicles
+              .map(
+                (v) => `
+              <button type="button" class="quick-chip ${this.settings.activeVehicleId === v.id ? 'active-amber' : ''}" data-q-saved-veh="${this.escapeHtml(v.id)}">
+                ${v.icon} ${this.escapeHtml(v.name)}
+              </button>
+            `
+              )
+              .join('')}
+          </div>
+        </div>
+      `
+          : ''
+      }
       <div class="quick-setup-section">
-        <div class="quick-setup-label">🚛 ${bundle.truckPresets}</div>
+        <div class="quick-setup-label">⚙️ ${bundle.truckPresets}</div>
         <div class="quick-chips-row">
           ${presets
             .map(
@@ -586,6 +866,17 @@ class BestGpsApp {
   }
 
   private bindStartupEvents(): void {
+    this.root.querySelectorAll<HTMLButtonElement>('[data-launch-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this.launcherTab = btn.dataset.launchTab as 'modes' | 'vehicles';
+        this.editingVehicle = null;
+        this.renderUi();
+      });
+    });
+
+    const vehScope = this.root.querySelector('#launcher-vehicles-body');
+    if (vehScope) this.bindVehiclesTabEvents(vehScope);
+
     this.root.querySelectorAll<HTMLElement>('[data-launch-mode]').forEach((card) => {
       card.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).closest('[data-edit-mode]')) return;
@@ -656,10 +947,18 @@ class BestGpsApp {
       });
     });
 
+    this.root.querySelectorAll<HTMLButtonElement>('[data-q-saved-veh]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectCustomVehicle(this.settings, btn.dataset.qSavedVeh!);
+        this.renderUi();
+      });
+    });
+
     this.root.querySelectorAll<HTMLButtonElement>('[data-q-preset]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const pid = btn.dataset.qPreset as TruckPresetId;
         this.settings.truck = { ...this.settings.truck, presetId: pid, ...TRUCK_PRESETS[pid] };
+        this.settings.activeVehicleId = null;
         this.renderUi();
       });
     });
@@ -1053,6 +1352,11 @@ class BestGpsApp {
       this.renderUi();
     });
 
+    this.root.querySelector('#btn-open-vehicles')?.addEventListener('click', () => {
+      this.editingVehicle = null;
+      this.modal = 'vehicles';
+      this.renderModal();
+    });
     this.root.querySelector('#btn-open-vehicle')?.addEventListener('click', () => {
       this.modal = 'vehicle';
       this.renderModal();
@@ -1600,7 +1904,23 @@ class BestGpsApp {
     }
     const bundle = t(this.settings.language);
 
-    if (this.modal === 'vehicle') {
+    if (this.modal === 'vehicles') {
+      container.innerHTML = `
+        <div class="modal-backdrop" id="modal-bg">
+          <div class="modal-card">
+            <div class="modal-header">
+              <h2>🚛 ${bundle.myVehiclesTitle}</h2>
+              <button class="round-icon-btn" id="modal-close">✕</button>
+            </div>
+            <div id="modal-vehicles-body" style="display:flex;flex-direction:column;gap:10px;">
+              ${this.renderVehiclesTabBody(bundle)}
+            </div>
+          </div>
+        </div>
+      `;
+      const scope = container.querySelector('#modal-vehicles-body');
+      if (scope) this.bindVehiclesTabEvents(scope);
+    } else if (this.modal === 'vehicle') {
       const tr = this.settings.truck;
       container.innerHTML = `
         <div class="modal-backdrop" id="modal-bg">
@@ -1613,7 +1933,10 @@ class BestGpsApp {
             ${
               this.settings.mode === 'truck'
                 ? `
-              <div style="font-size:12px;font-weight:800;color:var(--amber);">🚛 ${bundle.truckPresets}</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span style="font-size:12px;font-weight:800;color:var(--amber);">🚛 ${bundle.truckPresets}</span>
+                <button type="button" class="pill-chip highlight" id="btn-jump-vehicles">🚛 ${bundle.vehiclesTab} (${this.settings.savedVehicles.length})</button>
+              </div>
               <div class="chips-strip">
                 ${(
                   [
@@ -1669,6 +1992,12 @@ class BestGpsApp {
           </div>
         </div>
       `;
+
+      container.querySelector('#btn-jump-vehicles')?.addEventListener('click', () => {
+        this.editingVehicle = null;
+        this.modal = 'vehicles';
+        this.renderModal();
+      });
 
       container.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) => {
         b.addEventListener('click', () => {

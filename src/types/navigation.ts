@@ -151,6 +151,13 @@ export interface RoadSignsSnapshot {
   signs: RoadSignItem[];
 }
 
+export interface CustomVehicle {
+  id: string;
+  name: string;
+  icon: string;
+  profile: TruckProfile;
+}
+
 export interface AppSettings {
   language: LanguageCode;
   mode: TransportMode;
@@ -160,6 +167,8 @@ export interface AppSettings {
   autoReroute: boolean;
   showRoadSigns: boolean;
   configuredModes: Partial<Record<TransportMode, boolean>>;
+  activeVehicleId: string | null;
+  savedVehicles: CustomVehicle[];
   truck: TruckProfile;
   car: CarOptions;
   bike: BikeOptions;

@@ -121,6 +121,19 @@ export interface TranslationBundle {
   avoidBadRoads: string;
   backLabel: string;
   editLabel: string;
+  vehiclesTab: string;
+  chooseModeTab: string;
+  myVehiclesTitle: string;
+  addVehicleBtn: string;
+  newVehicleTitle: string;
+  editVehicleTitle: string;
+  vehicleNameLabel: string;
+  vehicleNamePlaceholder: string;
+  activeBadge: string;
+  useVehicleBtn: string;
+  deleteLabel: string;
+  avoidUnpaved: string;
+  vehicleRoutingNote: string;
 }
 
 const NL: TranslationBundle = {
@@ -256,6 +269,19 @@ const NL: TranslationBundle = {
   avoidBadRoads: 'Slechte wegen vermijden',
   backLabel: 'Terug',
   editLabel: 'Wijzig',
+  vehiclesTab: 'Voertuigen',
+  chooseModeTab: 'Kies modus',
+  myVehiclesTitle: 'Mijn Voertuigen & Trucks',
+  addVehicleBtn: 'Nieuw voertuig',
+  newVehicleTitle: 'Nieuw voertuig toevoegen',
+  editVehicleTitle: 'Voertuig aanpassen',
+  vehicleNameLabel: 'Naam voertuig / truck',
+  vehicleNamePlaceholder: 'Bijv. Mijn DAF XF 40t of Bakwagen',
+  activeBadge: 'Actief',
+  useVehicleBtn: 'Gebruik in navigatie',
+  deleteLabel: 'Verwijder',
+  avoidUnpaved: 'Onverharde wegen vermijden',
+  vehicleRoutingNote: 'Route & verkeersborden (hoogte, breedte, gewicht, aslast, lengte & ADR) houden direct rekening met dit voertuig.',
 };
 
 const EN: TranslationBundle = {
@@ -391,6 +417,19 @@ const EN: TranslationBundle = {
   avoidBadRoads: 'Avoid bad roads',
   backLabel: 'Back',
   editLabel: 'Edit',
+  vehiclesTab: 'Vehicles',
+  chooseModeTab: 'Choose mode',
+  myVehiclesTitle: 'My Vehicles & Trucks',
+  addVehicleBtn: 'Add vehicle',
+  newVehicleTitle: 'Add custom vehicle',
+  editVehicleTitle: 'Edit vehicle',
+  vehicleNameLabel: 'Vehicle / truck name',
+  vehicleNamePlaceholder: 'e.g. My DAF XF 40t or Box Truck',
+  activeBadge: 'Active',
+  useVehicleBtn: 'Use in navigation',
+  deleteLabel: 'Delete',
+  avoidUnpaved: 'Avoid unpaved roads',
+  vehicleRoutingNote: 'Routing & road sign warnings (height, width, weight, axle load, length & ADR) automatically use this vehicle.',
 };
 
 const DE: TranslationBundle = {
@@ -510,6 +549,19 @@ const DE: TranslationBundle = {
   avoidBadRoads: 'Schlechte Wege meiden',
   backLabel: 'Zurück',
   editLabel: 'Ändern',
+  vehiclesTab: 'Fahrzeuge',
+  chooseModeTab: 'Modus wählen',
+  myVehiclesTitle: 'Meine Fahrzeuge & LKW',
+  addVehicleBtn: 'Neues Fahrzeug',
+  newVehicleTitle: 'Fahrzeug hinzufügen',
+  editVehicleTitle: 'Fahrzeug bearbeiten',
+  vehicleNameLabel: 'Fahrzeug- / LKW-Name',
+  vehicleNamePlaceholder: 'z.B. Mein MAN TGX 40t',
+  activeBadge: 'Aktiv',
+  useVehicleBtn: 'Für Navigation nutzen',
+  deleteLabel: 'Löschen',
+  avoidUnpaved: 'Unbefestigte Straßen meiden',
+  vehicleRoutingNote: 'Route & Verkehrsschilder (Höhe, Breite, Gewicht, Achslast, Länge & ADR) berücksichtigen dieses Fahrzeug sofort.',
 };
 
 const FR: TranslationBundle = {
@@ -606,6 +658,19 @@ const FR: TranslationBundle = {
   avoidBadRoads: 'Éviter mauvaises routes',
   backLabel: 'Retour',
   editLabel: 'Modifier',
+  vehiclesTab: 'Véhicules',
+  chooseModeTab: 'Choisir mode',
+  myVehiclesTitle: 'Mes Véhicules & Camions',
+  addVehicleBtn: 'Nouveau véhicule',
+  newVehicleTitle: 'Ajouter un véhicule',
+  editVehicleTitle: 'Modifier le véhicule',
+  vehicleNameLabel: 'Nom du véhicule',
+  vehicleNamePlaceholder: 'Ex: Mon Scania 40t',
+  activeBadge: 'Actif',
+  useVehicleBtn: 'Utiliser pour naviguer',
+  deleteLabel: 'Supprimer',
+  avoidUnpaved: 'Éviter routes non revêtues',
+  vehicleRoutingNote: 'L’itinéraire et les alertes panneaux (hauteur, largeur, poids, essieu, longueur, ADR) utilisent ce véhicule.',
 };
 
 const ES: TranslationBundle = {
@@ -684,6 +749,19 @@ const ES: TranslationBundle = {
   avoidBadRoads: 'Evitar malos caminos',
   backLabel: 'Atrás',
   editLabel: 'Editar',
+  vehiclesTab: 'Vehículos',
+  chooseModeTab: 'Elegir modo',
+  myVehiclesTitle: 'Mis Vehículos y Camiones',
+  addVehicleBtn: 'Nuevo vehículo',
+  newVehicleTitle: 'Añadir vehículo',
+  editVehicleTitle: 'Editar vehículo',
+  vehicleNameLabel: 'Nombre del vehículo',
+  vehicleNamePlaceholder: 'Ej. Mi camión 40t',
+  activeBadge: 'Activo',
+  useVehicleBtn: 'Usar en navegación',
+  deleteLabel: 'Eliminar',
+  avoidUnpaved: 'Evitar vías sin asfaltar',
+  vehicleRoutingNote: 'La ruta y las alertas de señales (altura, ancho, peso, eje, longitud y ADR) usan este vehículo.',
 };
 
 const PL: TranslationBundle = {
@@ -760,6 +838,19 @@ const PL: TranslationBundle = {
   avoidBadRoads: 'Omijaj złe drogi',
   backLabel: 'Wstecz',
   editLabel: 'Zmień',
+  vehiclesTab: 'Pojazdy',
+  chooseModeTab: 'Wybierz tryb',
+  myVehiclesTitle: 'Moje Pojazdy i Ciężarówki',
+  addVehicleBtn: 'Nowy pojazd',
+  newVehicleTitle: 'Dodaj pojazd',
+  editVehicleTitle: 'Edytuj pojazd',
+  vehicleNameLabel: 'Nazwa pojazdu / TIR',
+  vehicleNamePlaceholder: 'Np. Mój DAF 40t',
+  activeBadge: 'Aktywny',
+  useVehicleBtn: 'Użyj w nawigacji',
+  deleteLabel: 'Usuń',
+  avoidUnpaved: 'Omijaj drogi nieutwardzone',
+  vehicleRoutingNote: 'Trasa i ostrzeżenia o znakach (wysokość, szerokość, tonaż, oś, długość, ADR) używają tego pojazdu.',
 };
 
 const TR: TranslationBundle = {
@@ -836,6 +927,19 @@ const TR: TranslationBundle = {
   avoidBadRoads: 'Kötü yollardan kaçın',
   backLabel: 'Geri',
   editLabel: 'Düzenle',
+  vehiclesTab: 'Araçlar',
+  chooseModeTab: 'Mod seç',
+  myVehiclesTitle: 'Araçlarım ve Tırlarım',
+  addVehicleBtn: 'Yeni araç',
+  newVehicleTitle: 'Yeni araç ekle',
+  editVehicleTitle: 'Aracı düzenle',
+  vehicleNameLabel: 'Araç / Tır adı',
+  vehicleNamePlaceholder: 'Örn. Benim 40t Tırım',
+  activeBadge: 'Aktif',
+  useVehicleBtn: 'Navigasyonda kullan',
+  deleteLabel: 'Sil',
+  avoidUnpaved: 'Toprak yollardan kaçın',
+  vehicleRoutingNote: 'Rota ve tabela uyarıları (yükseklik, genişlik, ağırlık, aks, uzunluk ve ADR) bu aracı doğrudan dikkate alır.',
 };
 
 const DICTIONARIES: Record<LanguageCode, TranslationBundle> = { nl: NL, en: EN, de: DE, fr: FR, es: ES, pl: PL, tr: TR };

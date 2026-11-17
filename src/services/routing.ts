@@ -314,8 +314,12 @@ async function routeWithOrs(from: LatLng, to: LatLng, settings: AppSettings): Pr
   };
 
   if (settings.mode === 'truck') {
+    const avoid: string[] = [];
+    if (settings.truck.avoidTolls) avoid.push('tollways');
+    if (settings.truck.avoidFerries) avoid.push('ferries');
     payload.options = {
       vehicle_type: 'hgv',
+      ...(avoid.length > 0 ? { avoid_features: avoid } : {}),
       profile_params: {
         restrictions: {
           height: settings.truck.heightM,
