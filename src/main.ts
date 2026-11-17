@@ -15,6 +15,7 @@ import {
   toggleFavoritePlace,
   TRUCK_PRESETS,
   upsertCustomVehicle,
+  VOICE_STYLE_PRESETS,
 } from './storage/settings';
 import {
   AppSettings,
@@ -28,6 +29,7 @@ import {
   RouteOption,
   TransportMode,
   TruckPresetId,
+  VoiceStyle,
 } from './types/navigation';
 
 type ModalKind = null | 'vehicle' | 'vehicles' | 'saved' | 'settings' | 'coords';
@@ -1657,7 +1659,7 @@ class BestGpsApp {
         const msg = `${closeDanger.title} — ${t(this.settings.language).truckSignDanger}`;
         this.showToast(`⚠️ ${msg}`);
         if (this.isNavigating) {
-          void voiceNav.speak(msg, this.settings.language, this.settings.voiceEnabled, true);
+          void voiceNav.speak(msg, this.settings, true);
         }
       }
 
@@ -1736,7 +1738,7 @@ class BestGpsApp {
 
     const bundle = t(this.settings.language);
     if (route.steps[0]) {
-      void voiceNav.speak(route.steps[0].instruction, this.settings.language, this.settings.voiceEnabled, true);
+      void voiceNav.speak(route.steps[0].instruction, this.settings, true);
     }
 
     if (simulate) {
@@ -1797,7 +1799,7 @@ class BestGpsApp {
         if (pos.finished) {
           this.stopNavigation(true);
           this.showToast(`🏁 ${bundle.arrived}`);
-          void voiceNav.speak(bundle.arrived, this.settings.language, this.settings.voiceEnabled, true);
+          void voiceNav.speak(bundle.arrived, this.settings, true);
         }
       }, tickMs);
     }
@@ -1863,7 +1865,7 @@ class BestGpsApp {
     if (!fix.isSimulated && this.settings.autoReroute && snap.minMeters > 70 && Date.now() - this.lastRerouteAt > 12_000) {
       this.lastRerouteAt = Date.now();
       this.showToast(bundle.rerouting);
-      void voiceNav.speak(bundle.rerouting, this.settings.language, this.settings.voiceEnabled, true);
+      void voiceNav.speak(bundle.rerouting, this.settings, true);
       void this.computeActiveRoute();
       return;
     }
@@ -1873,7 +1875,7 @@ class BestGpsApp {
     if (endCoord && haversineMeters(fix, { lat: endCoord[1], lon: endCoord[0] }) < 35) {
       this.stopNavigation(true);
       this.showToast(`🏁 ${bundle.arrived}`);
-      void voiceNav.speak(bundle.arrived, this.settings.language, this.settings.voiceEnabled, true);
+      void voiceNav.speak(bundle.arrived, this.settings, true);
       return;
     }
 
@@ -1886,7 +1888,7 @@ class BestGpsApp {
           prog.distanceToStepM <= 70
             ? prog.nextStep.instruction
             : `${bundle.inDistance} ${this.formatDistance(prog.distanceToStepM)}, ${prog.nextStep.instruction}`;
-        void voiceNav.speak(msg, this.settings.language, this.settings.voiceEnabled, true);
+        void voiceNav.speak(msg, this.settings, true);
       }
     }
 
@@ -2185,6 +2187,18 @@ class BestGpsApp {
         });
       });
     } else if (this.modal === 'settings') {
+      let draftStyle: VoiceStyle = this.settings.voiceStyle;
+      let draftRate = this.settings.voiceRate;
+      let draftPitch = this.settings.voicePitch;
+      let draftUri = this.settings.voiceUri;
+
+      const styleOptions: [VoiceStyle, string][] = [
+        ['smooth', bundle.voiceSmooth],
+        ['calm', bundle.voiceCalm],
+        ['crisp', bundle.voiceCrisp],
+        ['standard', bundle.voiceStandard],
+      ];
+
       container.innerHTML = `
         <div class="modal-backdrop" id="modal-bg">
           <div class="modal-card">
@@ -2220,8 +2234,42 @@ class BestGpsApp {
             </div>
 
             <label class="toggle-row"><span>🔊 ${bundle.voiceLabel}</span><input id="set-voice" type="checkbox" ${this.settings.voiceEnabled ? 'checked' : ''}></label>
+
+            <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:8px;">
+              <div style="font-size:12px;font-weight:800;">🎙️ ${bundle.voiceStyleLabel}</div>
+              <div class="quick-chips-row">
+                ${styleOptions
+                  .map(
+                    ([id, label]) => `
+                  <button type="button" class="quick-chip ${draftStyle === id ? 'active' : ''}" data-voice-style="${id}">${label}</button>
+                `
+                  )
+                  .join('')}
+              </div>
+
+              <label class="field">${bundle.voiceSelectLabel}
+                <select id="set-voice-uri">
+                  <option value="">${bundle.voiceAutoBest}</option>
+                </select>
+              </label>
+
+              <div class="form-grid">
+                <label class="field">${bundle.voiceRateLabel}: <b id="lbl-voice-rate">${draftRate.toFixed(2)}x</b>
+                  <input id="set-voice-rate" type="range" min="0.72" max="1.20" step="0.02" value="${draftRate}">
+                </label>
+                <label class="field">${bundle.voicePitchLabel}: <b id="lbl-voice-pitch">${draftPitch.toFixed(2)}</b>
+                  <input id="set-voice-pitch" type="range" min="0.72" max="1.20" step="0.02" value="${draftPitch}">
+                </label>
+              </div>
+
+              <div class="btn-row">
+                <button type="button" class="secondary-btn" id="btn-test-voice" style="flex:1;">🗣️ ${bundle.testVoice}</button>
+                <button type="button" class="secondary-btn" id="btn-install-voices">${bundle.voiceInstallMore}</button>
+              </div>
+              <div style="font-size:11px;color:var(--muted);">${bundle.voiceInstallTip}</div>
+            </div>
+
             <label class="toggle-row"><span>🔄 ${bundle.autoRerouteLabel}</span><input id="set-reroute" type="checkbox" ${this.settings.autoReroute ? 'checked' : ''}></label>
-            <button class="secondary-btn" id="btn-test-voice">🗣️ ${bundle.testVoice}</button>
 
             <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;">
               <strong style="font-size:12px;">${bundle.proRoutingTitle}</strong>
@@ -2236,6 +2284,54 @@ class BestGpsApp {
         </div>
       `;
 
+      const voiceSelect = container.querySelector<HTMLSelectElement>('#set-voice-uri');
+      const rateSlider = container.querySelector<HTMLInputElement>('#set-voice-rate');
+      const pitchSlider = container.querySelector<HTMLInputElement>('#set-voice-pitch');
+      const rateLbl = container.querySelector<HTMLElement>('#lbl-voice-rate');
+      const pitchLbl = container.querySelector<HTMLElement>('#lbl-voice-pitch');
+
+      void voiceNav.getAvailableVoices(this.settings.language).then((voices) => {
+        if (this.modal !== 'settings' || !voiceSelect) return;
+        const opts = [
+          `<option value="">${this.escapeHtml(bundle.voiceAutoBest)}</option>`,
+          ...voices.map(
+            (v) =>
+              `<option value="${this.escapeHtml(v.voiceURI)}" ${draftUri === v.voiceURI ? 'selected' : ''}>${this.escapeHtml(v.label)}</option>`
+          ),
+        ];
+        voiceSelect.innerHTML = opts.join('');
+      });
+
+      voiceSelect?.addEventListener('change', () => {
+        draftUri = voiceSelect.value;
+      });
+
+      rateSlider?.addEventListener('input', () => {
+        draftRate = Number(rateSlider.value) || 0.91;
+        if (rateLbl) rateLbl.textContent = `${draftRate.toFixed(2)}x`;
+      });
+
+      pitchSlider?.addEventListener('input', () => {
+        draftPitch = Number(pitchSlider.value) || 0.90;
+        if (pitchLbl) pitchLbl.textContent = draftPitch.toFixed(2);
+      });
+
+      container.querySelectorAll<HTMLButtonElement>('[data-voice-style]').forEach((b) => {
+        b.addEventListener('click', () => {
+          draftStyle = b.dataset.voiceStyle as VoiceStyle;
+          const preset = VOICE_STYLE_PRESETS[draftStyle];
+          draftRate = preset.rate;
+          draftPitch = preset.pitch;
+          if (rateSlider) rateSlider.value = String(draftRate);
+          if (pitchSlider) pitchSlider.value = String(draftPitch);
+          if (rateLbl) rateLbl.textContent = `${draftRate.toFixed(2)}x`;
+          if (pitchLbl) pitchLbl.textContent = draftPitch.toFixed(2);
+          container.querySelectorAll<HTMLButtonElement>('[data-voice-style]').forEach((chip) => {
+            chip.classList.toggle('active', chip.dataset.voiceStyle === draftStyle);
+          });
+        });
+      });
+
       container.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) => {
         b.addEventListener('click', () => {
           this.settings.language = b.dataset.lang as AppSettings['language'];
@@ -2247,13 +2343,28 @@ class BestGpsApp {
 
       container.querySelector('#btn-test-voice')?.addEventListener('click', () => {
         const b = t(this.settings.language);
-        void voiceNav.speak(b.voiceSample, this.settings.language, true, true);
+        void voiceNav.speak(b.voiceSample, this.settings.language, true, true, {
+          voiceStyle: draftStyle,
+          voiceRate: draftRate,
+          voicePitch: draftPitch,
+          voiceUri: draftUri,
+        });
+      });
+
+      container.querySelector('#btn-install-voices')?.addEventListener('click', () => {
+        void voiceNav.openVoiceInstall().then((opened) => {
+          if (!opened) this.showToast(bundle.voiceInstallTip);
+        });
       });
 
       container.querySelector('#btn-save-settings')?.addEventListener('click', () => {
         this.settings.mapTheme = (container.querySelector('#set-theme') as HTMLSelectElement).value as AppSettings['mapTheme'];
         this.settings.units = (container.querySelector('#set-units') as HTMLSelectElement).value as AppSettings['units'];
         this.settings.voiceEnabled = (container.querySelector('#set-voice') as HTMLInputElement).checked;
+        this.settings.voiceStyle = draftStyle;
+        this.settings.voiceRate = draftRate;
+        this.settings.voicePitch = draftPitch;
+        this.settings.voiceUri = draftUri;
         this.settings.autoReroute = (container.querySelector('#set-reroute') as HTMLInputElement).checked;
         this.settings.orsApiKey = (container.querySelector('#set-ors') as HTMLInputElement).value.trim();
         this.settings.hereApiKey = (container.querySelector('#set-here') as HTMLInputElement).value.trim();

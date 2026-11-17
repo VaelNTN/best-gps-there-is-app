@@ -158,12 +158,18 @@ export interface CustomVehicle {
   profile: TruckProfile;
 }
 
+export type VoiceStyle = 'smooth' | 'calm' | 'crisp' | 'standard';
+
 export interface AppSettings {
   language: LanguageCode;
   mode: TransportMode;
   units: UnitSystem;
   mapTheme: MapTheme;
   voiceEnabled: boolean;
+  voiceStyle: VoiceStyle;
+  voiceRate: number;
+  voicePitch: number;
+  voiceUri: string;
   autoReroute: boolean;
   showRoadSigns: boolean;
   configuredModes: Partial<Record<TransportMode, boolean>>;

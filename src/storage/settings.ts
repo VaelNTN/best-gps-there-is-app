@@ -1,7 +1,14 @@
 import { detectInitialLanguage } from '../i18n/translations';
-import { AppSettings, CustomVehicle, GeocodedPlace, SavedPlace, TruckPresetId, TruckProfile } from '../types/navigation';
+import { AppSettings, CustomVehicle, GeocodedPlace, SavedPlace, TruckPresetId, TruckProfile, VoiceStyle } from '../types/navigation';
 
 const STORAGE_KEY = 'best_gps_there_is_settings_v1';
+
+export const VOICE_STYLE_PRESETS: Record<VoiceStyle, { rate: number; pitch: number }> = {
+  smooth: { rate: 0.91, pitch: 0.90 },
+  calm: { rate: 0.84, pitch: 0.86 },
+  crisp: { rate: 1.00, pitch: 1.02 },
+  standard: { rate: 1.00, pitch: 1.00 },
+};
 
 export const TRUCK_PRESETS: Record<TruckPresetId, Omit<TruckProfile, 'presetId' | 'avoidUnpaved' | 'avoidTolls' | 'avoidFerries'>> = {
   van: { heightM: 2.6, widthM: 2.1, lengthM: 6.0, weightT: 3.5, axleLoadT: 2.0, hazmat: false },
@@ -61,6 +68,10 @@ export function createDefaultSettings(): AppSettings {
     units: 'metric',
     mapTheme: 'night',
     voiceEnabled: true,
+    voiceStyle: 'smooth',
+    voiceRate: VOICE_STYLE_PRESETS.smooth.rate,
+    voicePitch: VOICE_STYLE_PRESETS.smooth.pitch,
+    voiceUri: '',
     autoReroute: true,
     showRoadSigns: true,
     configuredModes: {},
@@ -108,6 +119,10 @@ export function loadSettings(): AppSettings {
     return {
       ...defaults,
       ...parsed,
+      voiceStyle: parsed.voiceStyle ?? defaults.voiceStyle,
+      voiceRate: typeof parsed.voiceRate === 'number' ? Math.max(0.65, Math.min(1.35, parsed.voiceRate)) : defaults.voiceRate,
+      voicePitch: typeof parsed.voicePitch === 'number' ? Math.max(0.65, Math.min(1.35, parsed.voicePitch)) : defaults.voicePitch,
+      voiceUri: typeof parsed.voiceUri === 'string' ? parsed.voiceUri : '',
       configuredModes: { ...defaults.configuredModes, ...(parsed.configuredModes ?? {}) },
       activeVehicleId: parsed.activeVehicleId ?? savedVehicles[0]?.id ?? null,
       savedVehicles,

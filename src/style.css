@@ -774,6 +774,15 @@ body,
   font-weight: 700;
 }
 
+.field input[type='range'] {
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--accent);
+  height: 28px;
+  cursor: pointer;
+}
+
 .toggle-row {
   display: flex;
   align-items: center;

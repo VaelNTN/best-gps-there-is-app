@@ -143,6 +143,17 @@ export interface TranslationBundle {
   longitudeLabel: string;
   showOnMapBtn: string;
   invalidCoordsError: string;
+  voiceStyleLabel: string;
+  voiceSmooth: string;
+  voiceCalm: string;
+  voiceCrisp: string;
+  voiceStandard: string;
+  voiceSelectLabel: string;
+  voiceAutoBest: string;
+  voiceRateLabel: string;
+  voicePitchLabel: string;
+  voiceInstallMore: string;
+  voiceInstallTip: string;
 }
 
 const NL: TranslationBundle = {
@@ -221,7 +232,7 @@ const NL: TranslationBundle = {
   imperialUnits: 'Mijlen (mph)',
   voiceLabel: 'Spraakbegeleiding',
   testVoice: 'Test stem',
-  voiceSample: 'Over 200 meter rechtsaf.',
+  voiceSample: 'Rustig onderweg. Over 200 meter, sla je rechtsaf.',
   autoRerouteLabel: 'Automatisch herberekenen',
   proRoutingTitle: 'Optionele Professionele API Keys',
   proRoutingDesc: 'Standaard werkt alles direct gratis via OpenStreetMap/Valhalla. Voor officiële truckdata >150 km kun je een gratis OpenRouteService- of HERE-sleutel invullen.',
@@ -300,6 +311,17 @@ const NL: TranslationBundle = {
   longitudeLabel: 'Lengtegraad / Longitude (-180..180)',
   showOnMapBtn: 'Toon op kaart',
   invalidCoordsError: 'Ongeldige coördinaten. Gebruik breedtegraad (-90..90) en lengtegraad (-180..180).',
+  voiceStyleLabel: 'Stemstijl',
+  voiceSmooth: '😌 Smooth & Relaxed',
+  voiceCalm: '🛋️ Extra Chill',
+  voiceCrisp: '🎙️ Helder',
+  voiceStandard: '⚙️ Standaard',
+  voiceSelectLabel: 'Stem op toestel',
+  voiceAutoBest: '✨ Automatisch (Smooth / Beste stem)',
+  voiceRateLabel: 'Spreektempo',
+  voicePitchLabel: 'Warmte / Toonhoogte',
+  voiceInstallMore: '📲 HD-stemmen openen',
+  voiceInstallTip: 'Tip: Download een Google HD/Neural-stem op je telefoon voor de meest natuurlijke klank.',
 };
 
 const EN: TranslationBundle = {
@@ -378,7 +400,7 @@ const EN: TranslationBundle = {
   imperialUnits: 'Miles (mph)',
   voiceLabel: 'Voice guidance',
   testVoice: 'Test voice',
-  voiceSample: 'In 200 meters, turn right.',
+  voiceSample: 'Smooth drive ahead. In 200 meters, take a relaxed right turn.',
   autoRerouteLabel: 'Automatic rerouting',
   proRoutingTitle: 'Optional Pro Routing API Keys',
   proRoutingDesc: 'Everything works free out of the box via OpenStreetMap/Valhalla. For >150 km HGV or official commercial truck restrictions, optionally add an OpenRouteService or HERE key.',
@@ -457,6 +479,17 @@ const EN: TranslationBundle = {
   longitudeLabel: 'Longitude (-180..180)',
   showOnMapBtn: 'Show on map',
   invalidCoordsError: 'Invalid coordinates. Use latitude (-90..90) and longitude (-180..180).',
+  voiceStyleLabel: 'Voice style',
+  voiceSmooth: '😌 Smooth & Relaxed',
+  voiceCalm: '🛋️ Extra Chill',
+  voiceCrisp: '🎙️ Clear & Crisp',
+  voiceStandard: '⚙️ Standard',
+  voiceSelectLabel: 'Device voice',
+  voiceAutoBest: '✨ Auto (Smooth / Best available)',
+  voiceRateLabel: 'Speaking pace',
+  voicePitchLabel: 'Warmth / Pitch',
+  voiceInstallMore: '📲 Open HD voice packs',
+  voiceInstallTip: 'Tip: Download a Google HD/Neural voice on your phone for the warmest natural sound.',
 };
 
 const DE: TranslationBundle = {
@@ -530,7 +563,7 @@ const DE: TranslationBundle = {
   unitsLabel: 'Einheiten',
   voiceLabel: 'Sprachführung',
   testVoice: 'Stimme testen',
-  voiceSample: 'In 200 Metern rechts abbiegen.',
+  voiceSample: 'Ruhige Fahrt voraus. In 200 Metern, entspannt rechts abbiegen.',
   autoRerouteLabel: 'Automatische Neuberechnung',
   saveSettings: 'Speichern & Schließen',
   poiFuel: 'Tanken / Diesel',
@@ -598,6 +631,17 @@ const DE: TranslationBundle = {
   longitudeLabel: 'Längengrad / Lon (-180..180)',
   showOnMapBtn: 'Auf Karte zeigen',
   invalidCoordsError: 'Ungültige Koordinaten. Nutze Breite (-90..90) und Länge (-180..180).',
+  voiceStyleLabel: 'Stimmstil',
+  voiceSmooth: '😌 Smooth & Entspannt',
+  voiceCalm: '🛋️ Extra Chill',
+  voiceCrisp: '🎙️ Klar & Deutlich',
+  voiceStandard: '⚙️ Standard',
+  voiceSelectLabel: 'Gerätestimme',
+  voiceAutoBest: '✨ Automatisch (Smooth / Beste Stimme)',
+  voiceRateLabel: 'Sprechtempo',
+  voicePitchLabel: 'Wärme / Tonhöhe',
+  voiceInstallMore: '📲 HD-Stimmen laden',
+  voiceInstallTip: 'Tipp: Lade eine Google HD/Neural-Stimme herunter für den natürlichsten Klang.',
 };
 
 const FR: TranslationBundle = {
@@ -654,7 +698,7 @@ const FR: TranslationBundle = {
   nightTheme: 'Mode nuit',
   voiceLabel: 'Guidage vocal',
   testVoice: 'Tester la voix',
-  voiceSample: 'Dans 200 mètres, tournez à droite.',
+  voiceSample: 'Route tranquille devant vous. Dans 200 mètres, tournez à droite.',
   saveSettings: 'Enregistrer',
   inDistance: 'Dans',
   maneuverPhrases: {
@@ -716,6 +760,17 @@ const FR: TranslationBundle = {
   longitudeLabel: 'Longitude (-180..180)',
   showOnMapBtn: 'Voir sur la carte',
   invalidCoordsError: 'Coordonnées invalides. Utilisez latitude (-90..90) et longitude (-180..180).',
+  voiceStyleLabel: 'Style de voix',
+  voiceSmooth: '😌 Fluide & Détendu',
+  voiceCalm: '🛋️ Extra Calme',
+  voiceCrisp: '🎙️ Clair',
+  voiceStandard: '⚙️ Standard',
+  voiceSelectLabel: 'Voix sur l’appareil',
+  voiceAutoBest: '✨ Auto (Fluide / Meilleure voix)',
+  voiceRateLabel: 'Vitesse',
+  voicePitchLabel: 'Chaleur / Hauteur',
+  voiceInstallMore: '📲 Voix HD sur appareil',
+  voiceInstallTip: 'Astuce : téléchargez une voix Google HD/Neurone pour un rendu très naturel.',
 };
 
 const ES: TranslationBundle = {
@@ -754,7 +809,7 @@ const ES: TranslationBundle = {
   nightTheme: 'Modo noche',
   voiceLabel: 'Voz de navegación',
   testVoice: 'Probar voz',
-  voiceSample: 'En 200 metros, gira a la derecha.',
+  voiceSample: 'Ruta tranquila por delante. En 200 metros, gira a la derecha.',
   saveSettings: 'Guardar',
   inDistance: 'En',
   maneuverPhrases: {
@@ -816,6 +871,17 @@ const ES: TranslationBundle = {
   longitudeLabel: 'Longitud (-180..180)',
   showOnMapBtn: 'Ver en el mapa',
   invalidCoordsError: 'Coordenadas no válidas. Usa latitud (-90..90) y longitud (-180..180).',
+  voiceStyleLabel: 'Estilo de voz',
+  voiceSmooth: '😌 Fluida y Relajada',
+  voiceCalm: '🛋️ Extra Tranquila',
+  voiceCrisp: '🎙️ Clara',
+  voiceStandard: '⚙️ Estándar',
+  voiceSelectLabel: 'Voz del dispositivo',
+  voiceAutoBest: '✨ Auto (Fluida / Mejor voz)',
+  voiceRateLabel: 'Velocidad',
+  voicePitchLabel: 'Calidez / Tono',
+  voiceInstallMore: '📲 Voces HD en teléfono',
+  voiceInstallTip: 'Consejo: descarga una voz Google HD/Neuronal para un sonido más natural.',
 };
 
 const PL: TranslationBundle = {
@@ -852,7 +918,7 @@ const PL: TranslationBundle = {
   languageLabel: 'Język',
   voiceLabel: 'Nawigacja głosowa',
   testVoice: 'Test głosu',
-  voiceSample: 'Za 200 metrów skręć w prawo.',
+  voiceSample: 'Spokojna droga przed Tobą. Za 200 metrów skręć w prawo.',
   saveSettings: 'Zapisz',
   inDistance: 'Za',
   maneuverPhrases: {
@@ -914,6 +980,17 @@ const PL: TranslationBundle = {
   longitudeLabel: 'Długość / Lon (-180..180)',
   showOnMapBtn: 'Pokaż na mapie',
   invalidCoordsError: 'Nieprawidłowe współrzędne. Użyj szerokości (-90..90) i długości (-180..180).',
+  voiceStyleLabel: 'Styl głosu',
+  voiceSmooth: '😌 Płynny i Spokojny',
+  voiceCalm: '🛋️ Bardzo Cichy/Chill',
+  voiceCrisp: '🎙️ Wyraźny',
+  voiceStandard: '⚙️ Standard',
+  voiceSelectLabel: 'Głos na urządzeniu',
+  voiceAutoBest: '✨ Auto (Płynny / Najlepszy głos)',
+  voiceRateLabel: 'Tempo mowy',
+  voicePitchLabel: 'Ciepło / Ton',
+  voiceInstallMore: '📲 Pobierz głosy HD',
+  voiceInstallTip: 'Wskazówka: pobierz głos Google HD/Neural w telefonie, aby brzmiał jeszcze naturalniej.',
 };
 
 const TR: TranslationBundle = {
@@ -950,7 +1027,7 @@ const TR: TranslationBundle = {
   languageLabel: 'Dil',
   voiceLabel: 'Sesli yönlendirme',
   testVoice: 'Sesi test et',
-  voiceSample: '200 metre sonra sağa dönün.',
+  voiceSample: 'Önünüzdeki yol sakin. 200 metre sonra sağa dönün.',
   saveSettings: 'Kaydet',
   inDistance: 'Sonra:',
   maneuverPhrases: {
@@ -1012,6 +1089,17 @@ const TR: TranslationBundle = {
   longitudeLabel: 'Boylam / Lon (-180..180)',
   showOnMapBtn: 'Haritada göster',
   invalidCoordsError: 'Geçersiz koordinatlar. Enlem (-90..90) ve boylam (-180..180) girin.',
+  voiceStyleLabel: 'Ses tarzı',
+  voiceSmooth: '😌 Akıcı ve Rahat',
+  voiceCalm: '🛋️ Ekstra Sakin',
+  voiceCrisp: '🎙️ Net ve Berrak',
+  voiceStandard: '⚙️ Standart',
+  voiceSelectLabel: 'Cihaz sesi',
+  voiceAutoBest: '✨ Otomatik (Akıcı / En iyi ses)',
+  voiceRateLabel: 'Konuşma hızı',
+  voicePitchLabel: 'Sıcaklık / Ton',
+  voiceInstallMore: '📲 HD sesleri aç',
+  voiceInstallTip: 'İpucu: En doğal ses için telefonunuza bir Google HD/Neural ses indirin.',
 };
 
 const DICTIONARIES: Record<LanguageCode, TranslationBundle> = { nl: NL, en: EN, de: DE, fr: FR, es: ES, pl: PL, tr: TR };
