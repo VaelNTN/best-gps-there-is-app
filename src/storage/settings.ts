@@ -21,6 +21,7 @@ export function createDefaultSettings(): AppSettings {
     voiceEnabled: true,
     autoReroute: true,
     showRoadSigns: true,
+    configuredModes: {},
     truck: {
       presetId: 'semi40',
       ...TRUCK_PRESETS.semi40,
@@ -62,6 +63,7 @@ export function loadSettings(): AppSettings {
     return {
       ...defaults,
       ...parsed,
+      configuredModes: { ...defaults.configuredModes, ...(parsed.configuredModes ?? {}) },
       truck: { ...defaults.truck, ...(parsed.truck ?? {}) },
       car: { ...defaults.car, ...(parsed.car ?? {}) },
       bike: { ...defaults.bike, ...(parsed.bike ?? {}) },

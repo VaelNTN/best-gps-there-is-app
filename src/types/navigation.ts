@@ -159,6 +159,7 @@ export interface AppSettings {
   voiceEnabled: boolean;
   autoReroute: boolean;
   showRoadSigns: boolean;
+  configuredModes: Partial<Record<TransportMode, boolean>>;
   truck: TruckProfile;
   car: CarOptions;
   bike: BikeOptions;

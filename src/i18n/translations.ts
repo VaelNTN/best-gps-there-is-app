@@ -110,6 +110,17 @@ export interface TranslationBundle {
   signsNearbyLabel: string;
   truckSignDanger: string;
   speedLimitLabel: string;
+  chooseModeTitle: string;
+  chooseModeSub: string;
+  launcherModes: Record<TransportMode, string>;
+  quickSetupHint: string;
+  quickPickTag: string;
+  saveAndGo: string;
+  savedReady: string;
+  fastestRoute: string;
+  avoidBadRoads: string;
+  backLabel: string;
+  editLabel: string;
 }
 
 const NL: TranslationBundle = {
@@ -229,6 +240,22 @@ const NL: TranslationBundle = {
   signsNearbyLabel: 'Borden op weg',
   truckSignDanger: 'Let op: beperking voor jouw voertuig!',
   speedLimitLabel: 'Max',
+  chooseModeTitle: 'Hoe ga je op pad?',
+  chooseModeSub: 'Kies snel — je instellingen worden per keuze onthouden.',
+  launcherModes: {
+    pedestrian: 'Te voet',
+    bicycle: 'Met de fiets',
+    auto: 'Met de auto',
+    truck: 'Met zwaar verkeer',
+  },
+  quickSetupHint: 'Eenmalig snel kiezen — volgende keer open je dit deel meteen!',
+  quickPickTag: 'Snelle keuze',
+  saveAndGo: 'Onthoud & Start',
+  savedReady: 'Onthouden',
+  fastestRoute: 'Snelste route',
+  avoidBadRoads: 'Slechte wegen vermijden',
+  backLabel: 'Terug',
+  editLabel: 'Wijzig',
 };
 
 const EN: TranslationBundle = {
@@ -348,6 +375,22 @@ const EN: TranslationBundle = {
   signsNearbyLabel: 'Road signs nearby',
   truckSignDanger: 'Warning: restriction for your vehicle!',
   speedLimitLabel: 'Max',
+  chooseModeTitle: 'How are you traveling?',
+  chooseModeSub: 'Pick fast — your choices are remembered per mode.',
+  launcherModes: {
+    pedestrian: 'On foot',
+    bicycle: 'By bicycle',
+    auto: 'By car',
+    truck: 'Heavy / Truck',
+  },
+  quickSetupHint: 'Quick one-time setup — next time you open straight into GPS!',
+  quickPickTag: 'Quick setup',
+  saveAndGo: 'Save & Go',
+  savedReady: 'Saved',
+  fastestRoute: 'Fastest route',
+  avoidBadRoads: 'Avoid bad roads',
+  backLabel: 'Back',
+  editLabel: 'Edit',
 };
 
 const DE: TranslationBundle = {
@@ -451,6 +494,22 @@ const DE: TranslationBundle = {
   roadSignsChip: 'Schilder',
   signsNearbyLabel: 'Schilder in der Nähe',
   truckSignDanger: 'Achtung: Beschränkung für dein Fahrzeug!',
+  chooseModeTitle: 'Wie bist du unterwegs?',
+  chooseModeSub: 'Schnell wählen — wird pro Modus gemerkt.',
+  launcherModes: {
+    pedestrian: 'Zu Fuß',
+    bicycle: 'Mit dem Fahrrad',
+    auto: 'Mit dem Auto',
+    truck: 'Schwerlast / LKW',
+  },
+  quickSetupHint: 'Einmal schnell wählen — beim nächsten Mal geht es direkt los!',
+  quickPickTag: 'Schnellwahl',
+  saveAndGo: 'Merken & Start',
+  savedReady: 'Gemerkt',
+  fastestRoute: 'Schnellste Route',
+  avoidBadRoads: 'Schlechte Wege meiden',
+  backLabel: 'Zurück',
+  editLabel: 'Ändern',
 };
 
 const FR: TranslationBundle = {
@@ -531,6 +590,22 @@ const FR: TranslationBundle = {
   roadSignsChip: 'Panneaux',
   signsNearbyLabel: 'Panneaux à proximité',
   truckSignDanger: 'Attention : restriction pour votre véhicule !',
+  chooseModeTitle: 'Comment voyagez-vous ?',
+  chooseModeSub: 'Choix rapide — mémorisé pour la prochaine fois.',
+  launcherModes: {
+    pedestrian: 'À pied',
+    bicycle: 'À vélo',
+    auto: 'En voiture',
+    truck: 'Poids lourd',
+  },
+  quickSetupHint: 'Réglage rapide unique — accès direct la prochaine fois !',
+  quickPickTag: 'Choix rapide',
+  saveAndGo: 'Mémoriser & Go',
+  savedReady: 'Mémorisé',
+  fastestRoute: 'Itinéraire le plus rapide',
+  avoidBadRoads: 'Éviter mauvaises routes',
+  backLabel: 'Retour',
+  editLabel: 'Modifier',
 };
 
 const ES: TranslationBundle = {
@@ -593,6 +668,22 @@ const ES: TranslationBundle = {
   roadSignsChip: 'Señales',
   signsNearbyLabel: 'Señales cercanas',
   truckSignDanger: '¡Atención: restricción para tu vehículo!',
+  chooseModeTitle: '¿Cómo te desplazas?',
+  chooseModeSub: 'Elige rápido — se guarda para la próxima vez.',
+  launcherModes: {
+    pedestrian: 'A pie',
+    bicycle: 'En bicicleta',
+    auto: 'En coche',
+    truck: 'Vehículo pesado',
+  },
+  quickSetupHint: 'Ajuste rápido una sola vez — ¡luego entras directo!',
+  quickPickTag: 'Ajuste rápido',
+  saveAndGo: 'Guardar e ir',
+  savedReady: 'Guardado',
+  fastestRoute: 'Ruta más rápida',
+  avoidBadRoads: 'Evitar malos caminos',
+  backLabel: 'Atrás',
+  editLabel: 'Editar',
 };
 
 const PL: TranslationBundle = {
@@ -653,6 +744,22 @@ const PL: TranslationBundle = {
   roadSignsChip: 'Znaki',
   signsNearbyLabel: 'Znaki w pobliżu',
   truckSignDanger: 'Uwaga: ograniczenie dla Twojego pojazdu!',
+  chooseModeTitle: 'Jak podróżujesz?',
+  chooseModeSub: 'Wybierz szybko — aplikacja zapamięta ustawienia.',
+  launcherModes: {
+    pedestrian: 'Pieszo',
+    bicycle: 'Rowerem',
+    auto: 'Samochodem',
+    truck: 'Ciężki / TIR',
+  },
+  quickSetupHint: 'Jednorazowy szybki wybór — następnym razem wejdziesz od razu!',
+  quickPickTag: 'Szybki wybór',
+  saveAndGo: 'Zapamiętaj i start',
+  savedReady: 'Zapamiętane',
+  fastestRoute: 'Najszybsza trasa',
+  avoidBadRoads: 'Omijaj złe drogi',
+  backLabel: 'Wstecz',
+  editLabel: 'Zmień',
 };
 
 const TR: TranslationBundle = {
@@ -713,6 +820,22 @@ const TR: TranslationBundle = {
   roadSignsChip: 'Tabelalar',
   signsNearbyLabel: 'Yakındaki tabelalar',
   truckSignDanger: 'Dikkat: aracınız için kısıtlama!',
+  chooseModeTitle: 'Nasıl yola çıkıyorsun?',
+  chooseModeSub: 'Hızlıca seç — ayarların her mod için hatırlanır.',
+  launcherModes: {
+    pedestrian: 'Yürüyerek',
+    bicycle: 'Bisikletle',
+    auto: 'Arabayla',
+    truck: 'Ağır Vasıta',
+  },
+  quickSetupHint: 'Tek seferlik hızlı seçim — bir dahaki sefere doğrudan açılır!',
+  quickPickTag: 'Hızlı seçim',
+  saveAndGo: 'Kaydet ve Başlat',
+  savedReady: 'Hatırlandı',
+  fastestRoute: 'En hızlı rota',
+  avoidBadRoads: 'Kötü yollardan kaçın',
+  backLabel: 'Geri',
+  editLabel: 'Düzenle',
 };
 
 const DICTIONARIES: Record<LanguageCode, TranslationBundle> = { nl: NL, en: EN, de: DE, fr: FR, es: ES, pl: PL, tr: TR };
