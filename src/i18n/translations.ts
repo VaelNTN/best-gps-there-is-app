@@ -193,6 +193,8 @@ export interface TranslationBundle {
   routeBestOfLabel: (count: number) => string;
   routeZeroDetourLabel: string;
   routeSavedVsAlt: (dist: string, dur: string) => string;
+  advancedRoutingTitle: string;
+  gpsLocating: string;
 }
 
 const NL: TranslationBundle = {
@@ -260,7 +262,7 @@ const NL: TranslationBundle = {
   bikeType: 'Type fiets',
   walkSpeed: 'Loopsnelheid (km/u)',
   truckWarning: 'Let op: volg bij vrachtwagens altijd fysieke hoogte-, breedte- en gewichtsborden langs de weg.',
-  longTruckFallbackWarning: 'Lange vrachtwagenroute (>150 km) zonder HERE/ORS-key: extra opletten voor lage bruggen & gewichtsbeperkingen.',
+  longTruckFallbackWarning: 'Lange vrachtwagenroute (>150 km): extra opletten voor lage bruggen & gewichtsbeperkingen.',
   settingsTitle: 'Talen & Instellingen',
   languageLabel: 'Taal / Language',
   themeLabel: 'Kaartthema',
@@ -273,11 +275,11 @@ const NL: TranslationBundle = {
   testVoice: 'Test stem',
   voiceSample: 'Rustig onderweg. Over 200 meter, sla je rechtsaf.',
   autoRerouteLabel: 'Automatisch herberekenen',
-  proRoutingTitle: 'Optionele Professionele API Keys',
-  proRoutingDesc: 'Standaard werkt alles direct gratis via OpenStreetMap/Valhalla. Voor officiële truckdata >150 km kun je een gratis OpenRouteService- of HERE-sleutel invullen.',
+  proRoutingTitle: 'Eigen routingsleutels (optioneel)',
+  proRoutingDesc: 'Standaard werkt routering direct automatisch. Vul alleen iets in als je eigen API-sleutels of een eigen serveradres wilt gebruiken.',
   orsKeyLabel: 'OpenRouteService API Key (optioneel)',
   hereKeyLabel: 'HERE Routing v8 API Key (optioneel)',
-  valhallaUrlLabel: 'Valhalla Server URL',
+  valhallaUrlLabel: 'Server URL (optioneel)',
   saveSettings: 'Opslaan & Sluiten',
   poiFuel: 'Brandstof / Diesel',
   poiParking: 'Parking / Truckstop',
@@ -400,11 +402,13 @@ const NL: TranslationBundle = {
   routeBestOfLabel: (count) => `⚡ Allerbeste & snelste uit ${count} routes`,
   routeZeroDetourLabel: 'Geen onnodige omweg',
   routeSavedVsAlt: (dist, dur) => `Bespaart tot ${dist} / ${dur}`,
+  advancedRoutingTitle: 'Geavanceerde routering',
+  gpsLocating: 'GPS zoeken...',
 };
 
 const EN: TranslationBundle = {
   appTitle: 'Road Mapper',
-  searchPlaceholder: 'Where to? (address, city, coordinates...)',
+  searchPlaceholder: 'Where to? (address, city, coordinates)',
   fromMyLocation: 'From my GPS location',
   modes: {
     pedestrian: 'Walk',
@@ -467,7 +471,7 @@ const EN: TranslationBundle = {
   bikeType: 'Bicycle type',
   walkSpeed: 'Walking speed (km/h)',
   truckWarning: 'Notice: truck drivers must always obey physical bridge height, width, and weight road signs.',
-  longTruckFallbackWarning: 'Long truck route (>150 km) without HERE/ORS key: watch carefully for low bridges & weight limits.',
+  longTruckFallbackWarning: 'Long truck route (>150 km): watch carefully for low bridges & weight limits.',
   settingsTitle: 'Languages & Settings',
   languageLabel: 'Language',
   themeLabel: 'Map theme',
@@ -480,11 +484,11 @@ const EN: TranslationBundle = {
   testVoice: 'Test voice',
   voiceSample: 'Smooth drive ahead. In 200 meters, take a relaxed right turn.',
   autoRerouteLabel: 'Automatic rerouting',
-  proRoutingTitle: 'Optional Pro Routing API Keys',
-  proRoutingDesc: 'Everything works free out of the box via OpenStreetMap/Valhalla. For >150 km HGV or official commercial truck restrictions, optionally add an OpenRouteService or HERE key.',
+  proRoutingTitle: 'Custom Routing Keys (optional)',
+  proRoutingDesc: 'Automatic routing works out of the box. Only fill these in if you want to use custom routing keys or a custom server.',
   orsKeyLabel: 'OpenRouteService API Key (optional)',
   hereKeyLabel: 'HERE Routing v8 API Key (optional)',
-  valhallaUrlLabel: 'Valhalla Server URL',
+  valhallaUrlLabel: 'Routing Server URL (optional)',
   saveSettings: 'Save & Close',
   poiFuel: 'Fuel / Diesel',
   poiParking: 'Parking / Truck Stop',
@@ -607,6 +611,8 @@ const EN: TranslationBundle = {
   routeBestOfLabel: (count) => `⚡ Best & fastest of ${count} routes`,
   routeZeroDetourLabel: 'Zero unnecessary detours',
   routeSavedVsAlt: (dist, dur) => `Saves up to ${dist} / ${dur}`,
+  advancedRoutingTitle: 'Advanced Routing',
+  gpsLocating: 'Locating GPS...',
 };
 
 const DE: TranslationBundle = {
@@ -908,6 +914,8 @@ const FR: TranslationBundle = {
   voiceQuickHint1: 'Tais-toi',
   voiceQuickHint2: 'Combien de temps?',
   voiceQuickHint3: 'Trouver carburant',
+  advancedRoutingTitle: 'Routage avancé',
+  gpsLocating: 'Recherche GPS...',
 };
 
 const ES: TranslationBundle = {
@@ -1029,6 +1037,8 @@ const ES: TranslationBundle = {
   voiceQuickHint1: 'Cállate',
   voiceQuickHint2: '¿Cuánto falta?',
   voiceQuickHint3: 'Buscar gasolina',
+  advancedRoutingTitle: 'Enrutamiento avanzado',
+  gpsLocating: 'Buscando GPS...',
 };
 
 const PL: TranslationBundle = {
@@ -1148,6 +1158,8 @@ const PL: TranslationBundle = {
   voiceQuickHint1: 'Cicho',
   voiceQuickHint2: 'Ile jeszcze?',
   voiceQuickHint3: 'Szukaj paliwa',
+  advancedRoutingTitle: 'Zaawansowane wyznaczanie tras',
+  gpsLocating: 'Szukam GPS...',
 };
 
 const TR: TranslationBundle = {

@@ -38,6 +38,15 @@ body,
   font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   color: var(--text);
   background: #0b1324;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+select {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .app-shell {
@@ -51,6 +60,11 @@ body,
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.maplibregl-ctrl-bottom-right,
+.maplibregl-ctrl-attrib {
+  display: none !important;
 }
 
 /* Custom Map Markers */
@@ -142,7 +156,7 @@ body,
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   z-index: 20;
   pointer-events: none;
 }
@@ -159,7 +173,7 @@ body,
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 6px 8px;
+  padding: 5px 7px;
   box-shadow: var(--shadow);
 }
 
@@ -183,9 +197,9 @@ body,
   border: 1px solid var(--border);
   background: var(--bg-card-2);
   color: var(--text);
-  border-radius: 11px;
-  width: 36px;
-  height: 36px;
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -194,72 +208,99 @@ body,
   flex-shrink: 0;
 }
 
-/* 4 Transport Mode Bar */
-.modes-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+.round-icon-btn.compact-38 {
+  width: 38px;
+  height: 38px;
+  font-size: 14px;
 }
 
-.mode-btn {
-  border: 1.5px solid var(--border);
+/* Compact Mode Switcher Pill + Quick Chips Strip */
+.top-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mode-pill-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 999px;
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
-  color: var(--text);
-  border-radius: 14px;
-  padding: 7px 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  cursor: pointer;
+  border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  transition: transform 0.1s ease, border-color 0.15s ease;
+  flex-shrink: 0;
 }
 
-.mode-btn:active {
-  transform: scale(0.97);
+.mode-pill-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
-.mode-btn .m-ico {
-  font-size: 18px;
-  line-height: 1.1;
+.mode-pill-btn:active {
+  transform: scale(0.96);
 }
 
-.mode-btn .m-lbl {
+.mode-pill-btn .m-ico {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.mode-pill-btn .m-lbl {
   font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.mode-btn.active[data-mode='pedestrian'] {
+.mode-pill-btn.active {
+  padding: 4px 10px;
+}
+
+.mode-pill-btn.active[data-mode='pedestrian'] {
   background: #065f46;
   border-color: #10b981;
   color: #ecfdf5;
 }
-.mode-btn.active[data-mode='bicycle'] {
+.mode-pill-btn.active[data-mode='bicycle'] {
   background: #155e75;
   border-color: #06b6d4;
   color: #ecfeff;
 }
-.mode-btn.active[data-mode='auto'] {
+.mode-pill-btn.active[data-mode='auto'] {
   background: #1e40af;
   border-color: #60a5fa;
   color: #eff6ff;
 }
-.mode-btn.active[data-mode='truck'] {
+.mode-pill-btn.active[data-mode='truck'] {
   background: #92400e;
   border-color: #f59e0b;
   color: #fffbeb;
 }
 
-/* Strip under modes: Truck dimensions + POI quick filters */
+/* Strip beside mode pills: Vehicle settings + POI quick filters */
 .chips-strip {
   display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
   gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
-  padding-bottom: 2px;
+  padding: 2px 0;
 }
 .chips-strip::-webkit-scrollbar {
   display: none;
@@ -267,12 +308,13 @@ body,
 
 .pill-chip {
   flex-shrink: 0;
+  min-height: 36px;
   border: 1px solid var(--border);
   background: var(--bg-glass);
   backdrop-filter: blur(10px);
   color: var(--text);
   border-radius: 999px;
-  padding: 5px 11px;
+  padding: 6px 12px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -326,15 +368,17 @@ body,
   color: var(--muted);
 }
 
-/* Map Floating Buttons (Right side) */
+/* Map Floating Buttons (Positioned cleanly above bottom dock items) */
 .map-fab-stack {
-  position: absolute;
-  right: 12px;
-  bottom: 230px;
+  align-self: flex-end;
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 15;
+}
+
+.map-fab-stack.compact-row {
+  flex-direction: row;
 }
 
 .fab-btn {
@@ -353,7 +397,7 @@ body,
   justify-content: center;
 }
 
-/* Bottom Dock (Vehicle Cockpit + Route Preview / Pin Details) */
+/* Bottom Dock (FABs + Radio Mini Bar + Vehicle Cockpit + Route Preview / Pin Details) */
 .bottom-dock {
   position: absolute;
   left: 10px;
@@ -383,7 +427,8 @@ body,
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 52vh;
+  max-height: 44vh;
+  overflow-y: auto;
 }
 
 .route-summary-row {
@@ -548,6 +593,13 @@ body,
   opacity: 0.94;
 }
 
+.nav-banner-mic {
+  flex-shrink: 0;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.25);
+  color: #ffffff;
+}
+
 .nav-bottom-dock {
   position: absolute;
   left: 10px;
@@ -587,10 +639,14 @@ body,
 }
 
 .nav-bar-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
+}
+
+.nav-bar-actions .danger-btn {
+  min-height: 40px;
 }
 
 .sim-mult-btn {
@@ -816,224 +872,7 @@ body,
   background: rgba(59, 130, 246, 0.22);
 }
 
-/* Startup 4-Choice Launcher & Remembered Quick Setup */
-.startup-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 45;
-  background: radial-gradient(circle at 50% 10%, rgba(15, 23, 42, 0.84), rgba(2, 6, 23, 0.94));
-  backdrop-filter: blur(14px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: calc(env(safe-area-inset-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 14px);
-  overflow-y: auto;
-}
-
-body.theme-day .startup-overlay {
-  background: radial-gradient(circle at 50% 10%, rgba(241, 245, 249, 0.88), rgba(226, 232, 240, 0.95));
-}
-
-.launcher-card {
-  width: 100%;
-  max-width: 520px;
-  background: var(--bg-glass);
-  border: 1px solid var(--border);
-  border-radius: 26px;
-  padding: 18px 16px;
-  box-shadow: var(--shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-height: 100%;
-  overflow-y: auto;
-}
-
-.launcher-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.launcher-brand {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.launcher-title {
-  margin: 2px 0 0;
-  font-size: 22px;
-  font-weight: 900;
-  line-height: 1.15;
-}
-
-.launcher-sub {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.35;
-}
-
-.launcher-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.mode-hero-card {
-  position: relative;
-  border: 1.5px solid var(--border);
-  background: var(--bg-card-2);
-  color: var(--text);
-  border-radius: 18px;
-  padding: 14px 12px 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 5px;
-  cursor: pointer;
-  min-height: 126px;
-  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
-}
-
-.mode-hero-card:active {
-  transform: scale(0.97);
-}
-
-.mode-hero-card[data-launch-mode='pedestrian'] {
-  border-color: rgba(16, 185, 129, 0.45);
-}
-.mode-hero-card[data-launch-mode='bicycle'] {
-  border-color: rgba(6, 182, 212, 0.45);
-}
-.mode-hero-card[data-launch-mode='auto'] {
-  border-color: rgba(59, 130, 246, 0.45);
-}
-.mode-hero-card[data-launch-mode='truck'] {
-  border-color: rgba(245, 158, 11, 0.55);
-}
-
-.mode-hero-card.configured[data-launch-mode='pedestrian'] {
-  background: linear-gradient(155deg, rgba(6, 95, 70, 0.35), var(--bg-card-2));
-}
-.mode-hero-card.configured[data-launch-mode='bicycle'] {
-  background: linear-gradient(155deg, rgba(21, 94, 117, 0.35), var(--bg-card-2));
-}
-.mode-hero-card.configured[data-launch-mode='auto'] {
-  background: linear-gradient(155deg, rgba(30, 64, 175, 0.35), var(--bg-card-2));
-}
-.mode-hero-card.configured[data-launch-mode='truck'] {
-  background: linear-gradient(155deg, rgba(146, 64, 14, 0.38), var(--bg-card-2));
-}
-
-.mode-hero-top {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.mode-hero-ico {
-  font-size: 32px;
-  line-height: 1;
-}
-
-.mode-hero-edit {
-  border: 1px solid var(--border);
-  background: var(--bg-glass);
-  color: var(--text);
-  border-radius: 10px;
-  width: 30px;
-  height: 30px;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.mode-hero-title {
-  font-size: 16px;
-  font-weight: 900;
-  line-height: 1.2;
-}
-
-.mode-hero-desc {
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.3;
-}
-
-.mode-hero-badge {
-  margin-top: auto;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.16);
-  color: var(--muted);
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mode-hero-badge.saved {
-  background: rgba(16, 185, 129, 0.2);
-  color: var(--green);
-  border: 1px solid rgba(16, 185, 129, 0.45);
-}
-
-.launcher-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-}
-
-.quick-lang-strip {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.quick-lang-btn {
-  border: 1px solid var(--border);
-  background: var(--bg-card-2);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 5px 8px;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.quick-lang-btn.active {
-  border-color: var(--accent);
-  background: rgba(59, 130, 246, 0.26);
-}
-
-.quick-setup-section {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.quick-setup-label {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--muted);
-}
-
+/* Vehicles Modal & Quick Option Chips */
 .quick-chips-row {
   display: flex;
   flex-wrap: wrap;
@@ -1063,38 +902,6 @@ body.theme-day .startup-overlay {
 .quick-chip.active-amber {
   border-color: var(--amber);
   background: rgba(245, 158, 11, 0.24);
-}
-
-/* Voertuigen Tab & Custom Garage */
-.launcher-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 14px;
-  background: var(--bg-card-2);
-  border: 1px solid var(--border);
-}
-
-.launcher-tab-btn {
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  border-radius: 10px;
-  padding: 9px 10px;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.launcher-tab-btn.active {
-  background: var(--accent);
-  color: #ffffff;
-  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.35);
 }
 
 .vehicles-list {
@@ -1190,8 +997,8 @@ body.theme-day .vehicle-editor-box {
   border: 1.5px solid var(--border);
   background: var(--bg-card-2);
   border-radius: 10px;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   font-size: 19px;
   cursor: pointer;
   display: flex;
@@ -1206,7 +1013,7 @@ body.theme-day .vehicle-editor-box {
 
 .toast {
   position: fixed;
-  top: 76px;
+  top: calc(env(safe-area-inset-top) + 68px);
   left: 50%;
   transform: translateX(-50%);
   background: rgba(15, 23, 42, 0.95);
@@ -1481,13 +1288,13 @@ body.theme-day .vehicle-editor-box {
 }
 
 .radio-block-btn {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   border: 1px solid rgba(239, 68, 68, 0.35);
   background: rgba(239, 68, 68, 0.12);
   color: #f87171;
-  font-size: 13px;
+  font-size: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

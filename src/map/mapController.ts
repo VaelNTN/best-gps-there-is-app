@@ -65,6 +65,7 @@ export class MapController {
       zoom: 13.5,
       pitch: 0,
       bearing: 0,
+      attributionControl: false,
     });
 
     this.map.on('load', () => {
@@ -201,7 +202,7 @@ export class MapController {
       bounds.extend(route.coordinates[i]);
     }
     bounds.extend(route.coordinates[route.coordinates.length - 1]);
-    this.map.fitBounds(bounds, { padding: { top: 150, bottom: 230, left: 40, right: 40 }, maxZoom: 15, pitch: 0 });
+    this.map.fitBounds(bounds, { padding: { top: 120, bottom: 230, left: 36, right: 64 }, maxZoom: 15, pitch: 0 });
   }
 
   setStartPin(pos: LatLng | null): void {

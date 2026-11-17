@@ -98,9 +98,6 @@ class BestGpsApp {
   private radioModalPointerDown = false;
 
   private modal: ModalKind = null;
-  private launcherOpen = true;
-  private launcherTab: 'modes' | 'vehicles' = 'modes';
-  private quickSetupMode: TransportMode | null = null;
   private editingVehicle: CustomVehicle | null = null;
   private toastTimer = 0;
 
@@ -122,7 +119,12 @@ class BestGpsApp {
   }
 
   private applyBodyTheme(): void {
-    document.body.classList.toggle('theme-day', this.settings.mapTheme === 'day');
+    const isDay = this.settings.mapTheme === 'day';
+    document.body.classList.toggle('theme-day', isDay);
+    const meta = document.getElementById('theme-color-meta');
+    if (meta) {
+      meta.setAttribute('content', isDay ? '#f1f5f9' : '#0b1324');
+    }
   }
 
   private async initServices(): Promise<void> {
@@ -242,14 +244,7 @@ class BestGpsApp {
       return;
     }
 
-    if (this.launcherOpen) {
-      layer.innerHTML = this.renderStartupOverlay(bundle);
-      this.bindStartupEvents();
-      this.renderModal();
-      return;
-    }
-
-    const truckSummary = `${this.settings.truck.heightM.toFixed(1)}m H • ${this.settings.truck.weightT}t${
+    const truckSummary = `${this.settings.truck.heightM.toFixed(1)}m • ${this.settings.truck.weightT}t${
       this.settings.truck.hazmat ? ' • ADR' : ''
     }`;
 
@@ -261,10 +256,12 @@ class BestGpsApp {
       { kind: 'water', label: bundle.poiWater, ico: '🚰' },
     ];
 
+    const modes: TransportMode[] = ['pedestrian', 'bicycle', 'auto', 'truck'];
+    const fabRowClass = activeRoute || this.tappedPlace ? 'compact-row' : '';
+
     layer.innerHTML = `
       <div class="top-overlay">
         <div class="search-row">
-          <button class="round-icon-btn" id="btn-open-launcher" title="${bundle.chooseModeTitle}">☰</button>
           <input
             id="search-box"
             class="search-input"
@@ -283,73 +280,74 @@ class BestGpsApp {
               : ''
           }
           <button class="round-icon-btn" id="btn-open-saved" title="${bundle.savedPlaces}">⭐</button>
-          <button class="round-icon-btn" id="btn-open-settings" title="${bundle.settingsTitle}">🌐</button>
+          <button class="round-icon-btn" id="btn-open-settings" title="${bundle.settingsTitle}">⚙️</button>
         </div>
 
-        <div class="modes-grid">
-          <button class="mode-btn ${this.settings.mode === 'pedestrian' ? 'active' : ''}" data-mode="pedestrian">
-            <span class="m-ico">🚶</span>
-            <span class="m-lbl">${bundle.modes.pedestrian}</span>
-          </button>
-          <button class="mode-btn ${this.settings.mode === 'bicycle' ? 'active' : ''}" data-mode="bicycle">
-            <span class="m-ico">🚲</span>
-            <span class="m-lbl">${bundle.modes.bicycle}</span>
-          </button>
-          <button class="mode-btn ${this.settings.mode === 'auto' ? 'active' : ''}" data-mode="auto">
-            <span class="m-ico">🚗</span>
-            <span class="m-lbl">${bundle.modes.auto}</span>
-          </button>
-          <button class="mode-btn ${this.settings.mode === 'truck' ? 'active' : ''}" data-mode="truck">
-            <span class="m-ico">🚛</span>
-            <span class="m-lbl">${bundle.modes.truck}</span>
-          </button>
-        </div>
+        <div class="top-strip-row">
+          <div class="mode-pill-group" role="group" aria-label="${bundle.chooseModeTitle}">
+            ${modes
+              .map((m) => {
+                const active = this.settings.mode === m;
+                return `
+                  <button
+                    type="button"
+                    class="mode-pill-btn ${active ? 'active' : ''}"
+                    data-mode="${m}"
+                    title="${this.escapeHtml(bundle.modes[m])}"
+                  >
+                    <span class="m-ico">${this.getModeIcon(m)}</span>
+                    ${active ? `<span class="m-lbl">${this.escapeHtml(bundle.modes[m])}</span>` : ''}
+                  </button>
+                `;
+              })
+              .join('')}
+          </div>
 
-        <div class="chips-strip">
-          <button class="pill-chip ${this.radioSnap.isPlaying ? 'radio-active' : ''}" id="btn-toggle-radio">
-            📻 ${bundle.radioChip}
-          </button>
-          <button class="pill-chip" id="btn-open-coords">
-            📍 ${bundle.coordsChip}
-          </button>
-          <button class="pill-chip ${this.settings.voiceHandsfree ? 'active' : ''}" id="btn-toggle-handsfree">
-            🎧 ${bundle.handsfreeChip}
-          </button>
-          <button class="pill-chip ${this.settings.mode === 'truck' ? 'highlight' : ''}" id="btn-open-vehicles">
-            🚛 ${bundle.vehiclesTab} (${this.settings.savedVehicles.length})${this.settings.mode === 'truck' ? ` • ${truckSummary}` : ''}
-          </button>
-          <button class="pill-chip" id="btn-open-vehicle">
-            ⚙️ ${bundle.vehicleSettings}
-          </button>
-          <button class="pill-chip ${this.settings.showRoadSigns ? 'active' : ''}" id="btn-toggle-signs">
-            🚸 ${bundle.roadSignsChip}${this.settings.showRoadSigns && this.roadSigns.length > 0 ? ` (${this.roadSigns.length})` : ''}
-          </button>
-          ${poiButtons
-            .map(
-              (p) => `
-            <button class="pill-chip ${this.activePoiFilter === p.kind ? 'active' : ''}" data-poi="${p.kind}">
-              ${p.ico} ${p.label}
+          <div class="chips-strip">
+            <button class="pill-chip ${this.radioSnap.isPlaying ? 'radio-active' : ''}" id="btn-toggle-radio">
+              📻 ${bundle.radioChip}
             </button>
-          `
-            )
-            .join('')}
+            <button class="pill-chip" id="btn-open-coords">
+              📍 ${bundle.coordsChip}
+            </button>
+            <button class="pill-chip ${this.settings.voiceHandsfree ? 'active' : ''}" id="btn-toggle-handsfree">
+              🎧 ${bundle.handsfreeChip}
+            </button>
+            <button class="pill-chip ${this.settings.mode === 'truck' ? 'highlight' : ''}" id="btn-open-vehicles">
+              🚛 ${bundle.vehiclesTab}${this.settings.mode === 'truck' ? ` • ${truckSummary}` : ''}
+            </button>
+            <button class="pill-chip" id="btn-open-vehicle">
+              🎛️ ${bundle.vehicleSettings}
+            </button>
+            <button class="pill-chip ${this.settings.showRoadSigns ? 'active' : ''}" id="btn-toggle-signs">
+              🚸 ${bundle.roadSignsChip}${this.settings.showRoadSigns && this.roadSigns.length > 0 ? ` (${this.roadSigns.length})` : ''}
+            </button>
+            ${poiButtons
+              .map(
+                (p) => `
+              <button class="pill-chip ${this.activePoiFilter === p.kind ? 'active' : ''}" data-poi="${p.kind}">
+                ${p.ico} ${p.label}
+              </button>
+            `
+              )
+              .join('')}
+          </div>
         </div>
 
         ${this.renderVoiceAssistantBanner(bundle)}
         ${this.searchOpen ? this.renderSearchDropdown(bundle) : ''}
       </div>
 
-      <div class="map-fab-stack">
-        <button class="fab-btn" id="btn-gps-center" title="${bundle.recenter}">🎯</button>
-        <button class="fab-btn" id="btn-toggle-theme" title="${bundle.themeLabel}">
-          ${this.settings.mapTheme === 'night' ? '☀️' : '🌙'}
-        </button>
-        <button class="fab-btn" id="btn-toggle-voice" title="${bundle.voiceLabel}">
-          ${this.settings.voiceEnabled ? '🔊' : '🔇'}
-        </button>
-      </div>
-
       <div class="bottom-dock">
+        <div class="map-fab-stack ${fabRowClass}">
+          <button class="fab-btn" id="btn-gps-center" title="${bundle.recenter}">🎯</button>
+          <button class="fab-btn" id="btn-toggle-theme" title="${bundle.themeLabel}">
+            ${this.settings.mapTheme === 'night' ? '☀️' : '🌙'}
+          </button>
+          <button class="fab-btn" id="btn-toggle-voice" title="${bundle.voiceLabel}">
+            ${this.settings.voiceEnabled ? '🔊' : '🔇'}
+          </button>
+        </div>
         <div id="radio-mini-slot">${this.renderRadioMiniBar(bundle)}</div>
         <div id="vehicle-cockpit-slot">${this.renderVehicleCockpit(bundle)}</div>
         ${this.renderBottomSheet(bundle, activeRoute)}
@@ -450,7 +448,7 @@ class BestGpsApp {
       <div class="voice-assistant-pill ${this.isListening ? 'listening' : ''}">
         <div class="voice-assistant-row">
           <strong style="font-size:12px;">${this.isListening ? '🎙️ ...' : '💬 Road Mapper'}</strong>
-          <button type="button" class="round-icon-btn" id="btn-voice-banner-close" style="width:26px;height:26px;font-size:12px;">✕</button>
+          <button type="button" class="round-icon-btn compact-38" id="btn-voice-banner-close">✕</button>
         </div>
         ${this.isListening ? `<div class="voice-reply">${this.escapeHtml(bundle.voiceListeningPrompt)}</div>` : ''}
         ${b?.heard ? `<div class="voice-heard">“${this.escapeHtml(b.heard)}”</div>` : ''}
@@ -483,152 +481,14 @@ class BestGpsApp {
     }
   }
 
-  private getModeSummary(mode: TransportMode, bundle: ReturnType<typeof t>): string {
-    if (mode === 'pedestrian') {
-      const sp = `${this.settings.walk.walkingSpeedKmh.toFixed(1)} ${bundle.speedUnit}`;
-      return this.settings.walk.avoidStairs ? `${sp} • 🪜✕` : sp;
-    }
-    if (mode === 'bicycle') {
-      const parts: string[] = [this.settings.bike.bicycleType];
-      if (this.settings.bike.useHills < 0.4) parts.push('⛰️✕');
-      if (this.settings.bike.avoidBadRoads) parts.push('🪨✕');
-      return parts.join(' • ');
-    }
-    if (mode === 'auto') {
-      const parts: string[] = [this.settings.car.shortest ? '📏' : `⚡ ${bundle.fastestRoute.split(' ')[0]}`];
-      if (this.settings.car.avoidTolls) parts.push('Tol✕');
-      if (this.settings.car.avoidHighways) parts.push('Hwy✕');
-      if (this.settings.car.avoidFerries) parts.push('⛴️✕');
-      return parts.join(' • ');
-    }
-    return `${this.settings.truck.heightM.toFixed(1)}m H • ${this.settings.truck.weightT}t${
-      this.settings.truck.hazmat ? ' • ADR' : ''
-    }`;
-  }
-
-  private enterMode(mode: TransportMode, forceSetup = false): void {
+  private enterMode(mode: TransportMode): void {
     this.settings.mode = mode;
-    const isConfigured = Boolean(this.settings.configuredModes[mode]);
-    if (forceSetup || !isConfigured) {
-      this.quickSetupMode = mode;
-      this.launcherOpen = true;
-      saveSettings(this.settings);
-      this.renderUi();
-      return;
-    }
+    this.settings.configuredModes[mode] = true;
     saveSettings(this.settings);
-    this.launcherOpen = false;
-    this.quickSetupMode = null;
     this.renderUi();
     void this.refreshRoadSigns(true);
     if (this.destination) void this.computeActiveRoute();
     if (this.activePoiFilter) void this.loadPois(this.activePoiFilter);
-  }
-
-  private renderStartupOverlay(bundle: ReturnType<typeof t>): string {
-    if (this.quickSetupMode) {
-      const mode = this.quickSetupMode;
-      return `
-        <div class="startup-overlay">
-          <div class="launcher-card">
-            <div class="launcher-header">
-              <div>
-                <div class="launcher-brand">${this.getModeIcon(mode)} ${bundle.launcherModes[mode]}</div>
-                <h1 class="launcher-title">${bundle.vehicleSettings}</h1>
-                <p class="launcher-sub">${bundle.quickSetupHint}</p>
-              </div>
-              <button type="button" class="secondary-btn" id="btn-quick-back">← ${bundle.backLabel}</button>
-            </div>
-
-            ${this.renderQuickSetupBody(mode, bundle)}
-
-            <button type="button" class="primary-btn" id="btn-quick-go" style="width:100%;padding:13px 16px;font-size:15px;">
-              ✅ ${bundle.saveAndGo}
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    const modes: TransportMode[] = ['pedestrian', 'bicycle', 'auto', 'truck'];
-    return `
-      <div class="startup-overlay">
-        <div class="launcher-card">
-          <div class="launcher-header">
-            <div>
-              <div class="launcher-brand">🧭 ${bundle.appTitle}</div>
-              <h1 class="launcher-title">${
-                this.launcherTab === 'vehicles' ? bundle.myVehiclesTitle : bundle.chooseModeTitle
-              }</h1>
-              <p class="launcher-sub">${
-                this.launcherTab === 'vehicles' ? bundle.vehicleRoutingNote : bundle.chooseModeSub
-              }</p>
-            </div>
-            <button type="button" class="round-icon-btn" id="btn-launcher-settings" title="${bundle.settingsTitle}">🌐</button>
-          </div>
-
-          <div class="launcher-tabs">
-            <button type="button" class="launcher-tab-btn ${this.launcherTab === 'modes' ? 'active' : ''}" data-launch-tab="modes">
-              🧭 ${bundle.chooseModeTab}
-            </button>
-            <button type="button" class="launcher-tab-btn ${this.launcherTab === 'vehicles' ? 'active' : ''}" data-launch-tab="vehicles">
-              🚛 ${bundle.vehiclesTab} (${this.settings.savedVehicles.length})
-            </button>
-          </div>
-
-          ${
-            this.launcherTab === 'vehicles'
-              ? `<div id="launcher-vehicles-body">${this.renderVehiclesTabBody(bundle)}</div>`
-              : `
-          <div class="launcher-grid">
-            ${modes
-              .map((m) => {
-                const configured = Boolean(this.settings.configuredModes[m]);
-                return `
-                <div role="button" tabindex="0" class="mode-hero-card ${configured ? 'configured' : ''}" data-launch-mode="${m}">
-                  <div class="mode-hero-top">
-                    <span class="mode-hero-ico">${this.getModeIcon(m)}</span>
-                    ${
-                      configured
-                        ? `<button type="button" class="mode-hero-edit" data-edit-mode="${m}" title="${bundle.editLabel}">⚙️</button>`
-                        : ''
-                    }
-                  </div>
-                  <div class="mode-hero-title">${bundle.launcherModes[m]}</div>
-                  <div class="mode-hero-desc">${bundle.modeSubtitles[m]}</div>
-                  <div class="mode-hero-badge ${configured ? 'saved' : ''}">
-                    ${configured ? `✅ ${this.getModeSummary(m, bundle)}` : `⚡ ${bundle.quickPickTag}`}
-                  </div>
-                </div>
-              `;
-              })
-              .join('')}
-          </div>
-          `
-          }
-
-          <div class="launcher-footer">
-            <div class="quick-lang-strip">
-              ${SUPPORTED_LANGUAGES.map(
-                (l) => `
-                <button type="button" class="quick-lang-btn ${this.settings.language === l.code ? 'active' : ''}" data-quick-lang="${l.code}">
-                  ${l.flag} ${l.code.toUpperCase()}
-                </button>
-              `
-              ).join('')}
-            </div>
-            <div style="display:flex;gap:6px;">
-              <button type="button" class="round-icon-btn" id="btn-launch-theme" title="${bundle.themeLabel}">
-                ${this.settings.mapTheme === 'night' ? '☀️' : '🌙'}
-              </button>
-              <button type="button" class="round-icon-btn" id="btn-launch-voice" title="${bundle.voiceLabel}">
-                ${this.settings.voiceEnabled ? '🔊' : '🔇'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
   }
 
   private renderVehiclesTabBody(bundle: ReturnType<typeof t>): string {
@@ -833,9 +693,6 @@ class BestGpsApp {
         this.settings.mode = 'truck';
         this.settings.configuredModes.truck = true;
         saveSettings(this.settings);
-        this.launcherOpen = false;
-        this.launcherTab = 'modes';
-        this.quickSetupMode = null;
         this.modal = null;
         this.showToast(`${selected.icon} ${selected.name}`);
         this.renderUi();
@@ -860,312 +717,6 @@ class BestGpsApp {
         void this.refreshRoadSigns(true);
         if (this.destination) void this.computeActiveRoute();
       });
-    });
-  }
-
-  private renderQuickSetupBody(mode: TransportMode, bundle: ReturnType<typeof t>): string {
-    if (mode === 'pedestrian') {
-      const speeds = [
-        { v: 4.0, label: '🐢 4.0' },
-        { v: 5.1, label: '🚶 5.1' },
-        { v: 6.5, label: '🏃 6.5' },
-      ];
-      return `
-        <div class="quick-setup-section">
-          <div class="quick-setup-label">${bundle.walkSpeed}</div>
-          <div class="quick-chips-row">
-            ${speeds
-              .map(
-                (s) => `
-              <button type="button" class="quick-chip ${Math.abs(this.settings.walk.walkingSpeedKmh - s.v) < 0.25 ? 'active' : ''}" data-q-wspeed="${s.v}">
-                ${s.label} ${bundle.speedUnit}
-              </button>
-            `
-              )
-              .join('')}
-          </div>
-        </div>
-        <div class="quick-setup-section">
-          <div class="quick-chips-row">
-            <button type="button" class="quick-chip ${this.settings.walk.avoidStairs ? 'active' : ''}" data-q-toggle="walk.avoidStairs">
-              🪜 ${bundle.avoidStairs}
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    if (mode === 'bicycle') {
-      const types: { id: AppSettings['bike']['bicycleType']; ico: string }[] = [
-        { id: 'City', ico: '🚲' },
-        { id: 'Hybrid', ico: '⚡' },
-        { id: 'Road', ico: '🚴' },
-        { id: 'Mountain', ico: '🚵' },
-      ];
-      return `
-        <div class="quick-setup-section">
-          <div class="quick-setup-label">${bundle.bikeType}</div>
-          <div class="quick-chips-row">
-            ${types
-              .map(
-                (bt) => `
-              <button type="button" class="quick-chip ${this.settings.bike.bicycleType === bt.id ? 'active' : ''}" data-q-btype="${bt.id}">
-                ${bt.ico} ${bt.id}
-              </button>
-            `
-              )
-              .join('')}
-          </div>
-        </div>
-        <div class="quick-setup-section">
-          <div class="quick-chips-row">
-            <button type="button" class="quick-chip ${this.settings.bike.useHills < 0.4 ? 'active' : ''}" data-q-toggle="bike.avoidHills">
-              ⛰️ ${bundle.avoidHills}
-            </button>
-            <button type="button" class="quick-chip ${this.settings.bike.avoidBadRoads ? 'active' : ''}" data-q-toggle="bike.avoidBadRoads">
-              🪨 ${bundle.avoidBadRoads}
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    if (mode === 'auto') {
-      return `
-        <div class="quick-setup-section">
-          <div class="quick-chips-row">
-            <button type="button" class="quick-chip ${!this.settings.car.shortest ? 'active' : ''}" data-q-car-short="0">
-              ⚡ ${bundle.fastestRoute}
-            </button>
-            <button type="button" class="quick-chip ${this.settings.car.shortest ? 'active' : ''}" data-q-car-short="1">
-              📏 ${bundle.shortestRoute}
-            </button>
-          </div>
-        </div>
-        <div class="quick-setup-section">
-          <div class="quick-chips-row">
-            <button type="button" class="quick-chip ${this.settings.car.avoidTolls ? 'active' : ''}" data-q-toggle="car.avoidTolls">
-              🛣️ ${bundle.avoidTolls}
-            </button>
-            <button type="button" class="quick-chip ${this.settings.car.avoidHighways ? 'active' : ''}" data-q-toggle="car.avoidHighways">
-              🏎️ ${bundle.avoidHighways}
-            </button>
-            <button type="button" class="quick-chip ${this.settings.car.avoidFerries ? 'active' : ''}" data-q-toggle="car.avoidFerries">
-              ⛴️ ${bundle.avoidFerries}
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    const tr = this.settings.truck;
-    const presets: [TruckPresetId, string][] = [
-      ['van', bundle.presetVan],
-      ['box12', bundle.presetBox12],
-      ['semi40', bundle.presetSemi40],
-      ['lzv60', bundle.presetLzv60],
-      ['camper', bundle.presetCamper],
-    ];
-    return `
-      ${
-        this.settings.savedVehicles.length > 0
-          ? `
-        <div class="quick-setup-section">
-          <div class="quick-setup-label">🚛 ${bundle.myVehiclesTitle}</div>
-          <div class="quick-chips-row">
-            ${this.settings.savedVehicles
-              .map(
-                (v) => `
-              <button type="button" class="quick-chip ${this.settings.activeVehicleId === v.id ? 'active-amber' : ''}" data-q-saved-veh="${this.escapeHtml(v.id)}">
-                ${v.icon} ${this.escapeHtml(v.name)}
-              </button>
-            `
-              )
-              .join('')}
-          </div>
-        </div>
-      `
-          : ''
-      }
-      <div class="quick-setup-section">
-        <div class="quick-setup-label">⚙️ ${bundle.truckPresets}</div>
-        <div class="quick-chips-row">
-          ${presets
-            .map(
-              ([id, label]) => `
-            <button type="button" class="quick-chip ${tr.presetId === id ? 'active-amber' : ''}" data-q-preset="${id}">
-              ${label}
-            </button>
-          `
-            )
-            .join('')}
-        </div>
-      </div>
-      <div class="form-grid">
-        <label class="field">${bundle.heightM}<input id="q-in-h" type="number" step="0.1" min="1.5" max="5.0" value="${tr.heightM}"></label>
-        <label class="field">${bundle.widthM}<input id="q-in-w" type="number" step="0.05" min="1.5" max="3.5" value="${tr.widthM}"></label>
-        <label class="field">${bundle.lengthM}<input id="q-in-l" type="number" step="0.5" min="3.0" max="30.0" value="${tr.lengthM}"></label>
-        <label class="field">${bundle.weightT}<input id="q-in-wt" type="number" step="0.5" min="1.5" max="80.0" value="${tr.weightT}"></label>
-        <label class="field">${bundle.axleLoadT}<input id="q-in-ax" type="number" step="0.5" min="1.0" max="15.0" value="${tr.axleLoadT}"></label>
-      </div>
-      <div class="quick-setup-section">
-        <div class="quick-chips-row">
-          <button type="button" class="quick-chip ${tr.hazmat ? 'active-amber' : ''}" data-q-toggle="truck.hazmat">
-            ☣️ ${bundle.hazmatAdr}
-          </button>
-          <button type="button" class="quick-chip ${tr.avoidTolls ? 'active-amber' : ''}" data-q-toggle="truck.avoidTolls">
-            🛣️ ${bundle.avoidTolls}
-          </button>
-          <button type="button" class="quick-chip ${tr.avoidFerries ? 'active-amber' : ''}" data-q-toggle="truck.avoidFerries">
-            ⛴️ ${bundle.avoidFerries}
-          </button>
-        </div>
-      </div>
-    `;
-  }
-
-  private bindStartupEvents(): void {
-    this.root.querySelectorAll<HTMLButtonElement>('[data-launch-tab]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.launcherTab = btn.dataset.launchTab as 'modes' | 'vehicles';
-        this.editingVehicle = null;
-        this.renderUi();
-      });
-    });
-
-    const vehScope = this.root.querySelector('#launcher-vehicles-body');
-    if (vehScope) this.bindVehiclesTabEvents(vehScope);
-
-    this.root.querySelectorAll<HTMLElement>('[data-launch-mode]').forEach((card) => {
-      card.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('[data-edit-mode]')) return;
-        const mode = card.dataset.launchMode as TransportMode;
-        this.enterMode(mode, false);
-      });
-    });
-
-    this.root.querySelectorAll<HTMLButtonElement>('[data-edit-mode]').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const mode = btn.dataset.editMode as TransportMode;
-        this.enterMode(mode, true);
-      });
-    });
-
-    this.root.querySelectorAll<HTMLButtonElement>('[data-quick-lang]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.settings.language = btn.dataset.quickLang as AppSettings['language'];
-        saveSettings(this.settings);
-        this.renderUi();
-      });
-    });
-
-    this.root.querySelector('#btn-launch-theme')?.addEventListener('click', () => {
-      this.settings.mapTheme = this.settings.mapTheme === 'night' ? 'day' : 'night';
-      saveSettings(this.settings);
-      this.applyBodyTheme();
-      this.mapCtrl?.setTheme(this.settings.mapTheme);
-      this.renderUi();
-    });
-
-    this.root.querySelector('#btn-launch-voice')?.addEventListener('click', () => {
-      this.settings.voiceEnabled = !this.settings.voiceEnabled;
-      saveSettings(this.settings);
-      if (!this.settings.voiceEnabled) void voiceNav.stop();
-      this.renderUi();
-    });
-
-    this.root.querySelector('#btn-launcher-settings')?.addEventListener('click', () => {
-      this.modal = 'settings';
-      this.renderModal();
-    });
-
-    this.root.querySelector('#btn-quick-back')?.addEventListener('click', () => {
-      this.quickSetupMode = null;
-      this.renderUi();
-    });
-
-    this.root.querySelectorAll<HTMLButtonElement>('[data-q-wspeed]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.settings.walk.walkingSpeedKmh = Number(btn.dataset.qWspeed) || 5.1;
-        this.renderUi();
-      });
-    });
-
-    this.root.querySelectorAll<HTMLButtonElement>('[data-q-btype]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.settings.bike.bicycleType = btn.dataset.qBtype as AppSettings['bike']['bicycleType'];
-        this.renderUi();
-      });
-    });
-
-    this.root.querySelectorAll<HTMLButtonElement>('[data-q-car-short]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.settings.car.shortest = btn.dataset.qCarShort === '1';
-        this.renderUi();
-      });
-    });
-
-    this.root.querySelectorAll<HTMLButtonElement>('[data-q-saved-veh]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        selectCustomVehicle(this.settings, btn.dataset.qSavedVeh!);
-        this.renderUi();
-      });
-    });
-
-    this.root.querySelectorAll<HTMLButtonElement>('[data-q-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const pid = btn.dataset.qPreset as TruckPresetId;
-        this.settings.truck = { ...this.settings.truck, presetId: pid, ...TRUCK_PRESETS[pid] };
-        this.settings.activeVehicleId = null;
-        this.renderUi();
-      });
-    });
-
-    this.root.querySelectorAll<HTMLButtonElement>('[data-q-toggle]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.qToggle!;
-        if (key === 'walk.avoidStairs') this.settings.walk.avoidStairs = !this.settings.walk.avoidStairs;
-        else if (key === 'bike.avoidHills') this.settings.bike.useHills = this.settings.bike.useHills < 0.4 ? 0.7 : 0.1;
-        else if (key === 'bike.avoidBadRoads') this.settings.bike.avoidBadRoads = !this.settings.bike.avoidBadRoads;
-        else if (key === 'car.avoidTolls') this.settings.car.avoidTolls = !this.settings.car.avoidTolls;
-        else if (key === 'car.avoidHighways') this.settings.car.avoidHighways = !this.settings.car.avoidHighways;
-        else if (key === 'car.avoidFerries') this.settings.car.avoidFerries = !this.settings.car.avoidFerries;
-        else if (key === 'truck.hazmat') this.settings.truck.hazmat = !this.settings.truck.hazmat;
-        else if (key === 'truck.avoidTolls') this.settings.truck.avoidTolls = !this.settings.truck.avoidTolls;
-        else if (key === 'truck.avoidFerries') this.settings.truck.avoidFerries = !this.settings.truck.avoidFerries;
-        this.renderUi();
-      });
-    });
-
-    const syncTruckNums = (): void => {
-      const h = this.root.querySelector<HTMLInputElement>('#q-in-h');
-      const w = this.root.querySelector<HTMLInputElement>('#q-in-w');
-      const l = this.root.querySelector<HTMLInputElement>('#q-in-l');
-      const wt = this.root.querySelector<HTMLInputElement>('#q-in-wt');
-      const ax = this.root.querySelector<HTMLInputElement>('#q-in-ax');
-      if (h) this.settings.truck.heightM = Number(h.value) || 4.0;
-      if (w) this.settings.truck.widthM = Number(w.value) || 2.55;
-      if (l) this.settings.truck.lengthM = Number(l.value) || 16.5;
-      if (wt) this.settings.truck.weightT = Number(wt.value) || 40;
-      if (ax) this.settings.truck.axleLoadT = Number(ax.value) || 11.5;
-    };
-    ['#q-in-h', '#q-in-w', '#q-in-l', '#q-in-wt', '#q-in-ax'].forEach((sel) => {
-      this.root.querySelector<HTMLInputElement>(sel)?.addEventListener('change', syncTruckNums);
-    });
-
-    this.root.querySelector('#btn-quick-go')?.addEventListener('click', () => {
-      if (!this.quickSetupMode) return;
-      if (this.quickSetupMode === 'truck') syncTruckNums();
-      this.settings.mode = this.quickSetupMode;
-      this.settings.configuredModes[this.quickSetupMode] = true;
-      saveSettings(this.settings);
-      this.quickSetupMode = null;
-      this.launcherOpen = false;
-      this.renderUi();
-      void this.refreshRoadSigns(true);
-      if (this.destination) void this.computeActiveRoute();
-      if (this.activePoiFilter) void this.loadPois(this.activePoiFilter);
     });
   }
 
@@ -1430,6 +981,11 @@ class BestGpsApp {
           <div class="nav-dist-next" id="nav-dist-next">${bundle.inDistance} ${this.formatDistance(progress.distanceToStepM)}</div>
           <div class="nav-street-next">${this.escapeHtml(progress.nextStep.instruction)}</div>
         </div>
+        <button
+          class="round-icon-btn nav-banner-mic ${this.isListening ? 'mic-listening' : this.settings.voiceHandsfree ? 'mic-handsfree' : ''}"
+          id="btn-nav-mic"
+          title="${bundle.micBtnTitle}"
+        >🎙️</button>
       </div>
 
       <div class="nav-bottom-dock">
@@ -1455,34 +1011,25 @@ class BestGpsApp {
               <div style="font-size:16px;font-weight:900;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 ${this.formatDuration(progress.remainingSeconds)} • ${this.formatDistance(progress.remainingMeters)}
               </div>
-              <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                ${bundle.etaLabel}: <b>${this.formatEta(progress.remainingSeconds)}</b> • ${bundle.modes[this.settings.mode]}${
+              <div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span>${bundle.etaLabel}: <b>${this.formatEta(progress.remainingSeconds)}</b> • ${bundle.modes[this.settings.mode]}</span>
+                ${
                   this.isSimulating
-                    ? ' (DEMO)'
+                    ? `<button class="sim-mult-btn" id="btn-sim-mult">▶ ${this.simMultiplier}x</button>`
                     : this.hasLiveGps
-                      ? ` • <span style="color:var(--green);font-weight:800;">📡 ±${Math.round(this.currentFix.accuracyM)}m</span>`
+                      ? `<span style="color:var(--green);font-weight:800;">• 📡 ±${Math.round(this.currentFix.accuracyM)}m</span>`
                       : ''
                 }
               </div>
             </div>
           </div>
           <div class="nav-bar-actions">
-            ${
-              this.isSimulating
-                ? `<button class="sim-mult-btn" id="btn-sim-mult">${this.simMultiplier}x</button>`
-                : ''
-            }
             <button
               class="round-icon-btn ${this.radioSnap.isPlaying ? 'mic-handsfree' : ''}"
               id="btn-nav-radio"
               title="${bundle.radioChip}"
             >📻</button>
-            <button
-              class="round-icon-btn ${this.isListening ? 'mic-listening' : this.settings.voiceHandsfree ? 'mic-handsfree' : ''}"
-              id="btn-nav-mic"
-              title="${bundle.micBtnTitle}"
-            >🎙️</button>
-            <button class="round-icon-btn" id="btn-nav-voice">${this.settings.voiceEnabled ? '🔊' : '🔇'}</button>
+            <button class="round-icon-btn" id="btn-nav-voice" title="${bundle.voiceLabel}">${this.settings.voiceEnabled ? '🔊' : '🔇'}</button>
             <button class="round-icon-btn" id="btn-nav-recenter" title="${bundle.recenter}">🎯</button>
             <button class="danger-btn" id="btn-stop-nav">${bundle.stopNav}</button>
           </div>
@@ -1535,11 +1082,6 @@ class BestGpsApp {
   }
 
   private bindPlanningEvents(): void {
-    this.root.querySelector('#btn-open-launcher')?.addEventListener('click', () => {
-      this.quickSetupMode = null;
-      this.launcherOpen = true;
-      this.renderUi();
-    });
     this.root.querySelector('#btn-toggle-radio')?.addEventListener('click', () => {
       this.handleRadioChipTap();
     });
@@ -1588,7 +1130,7 @@ class BestGpsApp {
       this.renderUi();
     });
 
-    this.root.querySelectorAll<HTMLButtonElement>('.mode-btn').forEach((btn) => {
+    this.root.querySelectorAll<HTMLButtonElement>('.mode-pill-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const mode = btn.dataset.mode as TransportMode;
         if (this.settings.mode === mode) {
@@ -1596,7 +1138,7 @@ class BestGpsApp {
           this.renderModal();
           return;
         }
-        this.enterMode(mode, false);
+        this.enterMode(mode);
       });
     });
 
@@ -2576,13 +2118,19 @@ class BestGpsApp {
 
             <label class="toggle-row"><span>🔄 ${bundle.autoRerouteLabel}</span><input id="set-reroute" type="checkbox" ${this.settings.autoReroute ? 'checked' : ''}></label>
 
-            <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;">
-              <strong style="font-size:12px;">${bundle.proRoutingTitle}</strong>
-              <span style="font-size:11px;color:var(--muted);">${bundle.proRoutingDesc}</span>
-              <label class="field">${bundle.orsKeyLabel}<input id="set-ors" type="text" value="${this.escapeHtml(this.settings.orsApiKey)}" placeholder="eyJvcmciOi..."></label>
-              <label class="field">${bundle.hereKeyLabel}<input id="set-here" type="text" value="${this.escapeHtml(this.settings.hereApiKey)}" placeholder="HERE API Key"></label>
-              <label class="field">${bundle.valhallaUrlLabel}<input id="set-valhalla" type="url" value="${this.escapeHtml(this.settings.customValhallaUrl)}"></label>
-            </div>
+            <details class="advanced-accordion" id="settings-advanced-routing">
+              <summary class="advanced-summary">
+                <span>⚙️ ${bundle.advancedRoutingTitle}</span>
+                <span class="advanced-chevron">▾</span>
+              </summary>
+              <div class="advanced-body">
+                <strong style="font-size:12px;">${bundle.proRoutingTitle}</strong>
+                <span style="font-size:11px;color:var(--muted);">${bundle.proRoutingDesc}</span>
+                <label class="field">${bundle.orsKeyLabel}<input id="set-ors" type="text" value="${this.escapeHtml(this.settings.orsApiKey)}" placeholder="eyJvcmciOi..."></label>
+                <label class="field">${bundle.hereKeyLabel}<input id="set-here" type="text" value="${this.escapeHtml(this.settings.hereApiKey)}" placeholder="HERE API Key"></label>
+                <label class="field">${bundle.valhallaUrlLabel}<input id="set-valhalla" type="url" value="${this.escapeHtml(this.settings.customValhallaUrl)}"></label>
+              </div>
+            </details>
 
             <button class="primary-btn" id="btn-save-settings">${bundle.saveSettings}</button>
           </div>
@@ -3171,7 +2719,7 @@ class BestGpsApp {
     this.handsfreeLoopActive = true;
 
     while (this.handsfreeLoopActive && this.settings.voiceHandsfree) {
-      if (this.modal !== null || this.launcherOpen) {
+      if (this.modal !== null) {
         await this.sleep(600);
         continue;
       }
@@ -3384,8 +2932,6 @@ class BestGpsApp {
       case 'set_mode': {
         this.settings.mode = cmd.mode;
         this.settings.configuredModes[cmd.mode] = true;
-        this.launcherOpen = false;
-        this.quickSetupMode = null;
         saveSettings(this.settings);
         void this.refreshRoadSigns(true);
         if (this.destination) void this.computeActiveRoute();
