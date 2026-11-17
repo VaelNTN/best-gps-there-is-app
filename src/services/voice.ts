@@ -139,6 +139,11 @@ class VoiceNavigator {
   private lastSpokenText = '';
   private lastSpokenAt = 0;
   private cachedVoices: VoiceChoice[] | null = null;
+  private onSpeechDuck: ((speaking: boolean) => void) | null = null;
+
+  setSpeechDuckCallback(cb: ((speaking: boolean) => void) | null): void {
+    this.onSpeechDuck = cb;
+  }
 
   async getAvailableVoices(lang: LanguageCode): Promise<VoiceChoice[]> {
     const targetLocale = getLangMeta(lang).ttsLocale;
@@ -271,23 +276,24 @@ class VoiceNavigator {
     const safeRate = Math.max(0.65, Math.min(1.35, rate));
     const safePitch = Math.max(0.65, Math.min(1.35, pitch));
 
+    this.onSpeechDuck?.(true);
     try {
-      await TextToSpeech.stop().catch(() => undefined);
-      await TextToSpeech.speak({
-        text: spoken,
-        lang: resolvedLang,
-        rate: safeRate,
-        pitch: safePitch,
-        volume: 1.0,
-        voice: chosen && chosen.index >= 0 ? chosen.index : undefined,
-        category: 'ambient',
-      });
-      return;
-    } catch {
-      // Fall back to Web Speech API
-    }
+      try {
+        await TextToSpeech.stop().catch(() => undefined);
+        await TextToSpeech.speak({
+          text: spoken,
+          lang: resolvedLang,
+          rate: safeRate,
+          pitch: safePitch,
+          volume: 1.0,
+          voice: chosen && chosen.index >= 0 ? chosen.index : undefined,
+          category: 'ambient',
+        });
+        return;
+      } catch {
+        // Fall back to Web Speech API
+      }
 
-    try {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         await new Promise<void>((resolve) => {
@@ -315,6 +321,8 @@ class VoiceNavigator {
       }
     } catch {
       // Ignore if speech synthesis unsupported
+    } finally {
+      this.onSpeechDuck?.(false);
     }
   }
 

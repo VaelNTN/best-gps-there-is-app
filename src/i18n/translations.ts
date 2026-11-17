@@ -164,6 +164,23 @@ export interface TranslationBundle {
   voiceQuickHint1: string;
   voiceQuickHint2: string;
   voiceQuickHint3: string;
+  radioChip: string;
+  radioModalTitle: string;
+  radioModalSub: string;
+  radioAutoDjLabel: string;
+  radioNextBtn: string;
+  radioScanning: string;
+  radioMusicBadge: string;
+  radioFreshStart: string;
+  radioTalkSkipped: string;
+  radioAdSkipped: string;
+  radioOfflineBadge: string;
+  radioGenreAll: string;
+  radioGenreHits: string;
+  radioGenreDance: string;
+  radioGenreRock: string;
+  radioGenreChill: string;
+  radioGenreNonstop: string;
 }
 
 const NL: TranslationBundle = {
@@ -342,6 +359,23 @@ const NL: TranslationBundle = {
   voiceQuickHint1: 'Zwijg even',
   voiceQuickHint2: 'Hoelang nog?',
   voiceQuickHint3: 'Waar kan ik tanken?',
+  radioChip: 'Muziekradio',
+  radioModalTitle: 'Non-Stop Muziekscanner',
+  radioModalSub: 'Scant alle zenders en frequenties in de buurt tegelijk — skipt DJ-praat & reclame en springt naar nummers die net starten.',
+  radioAutoDjLabel: 'Auto-DJ (alle zenders, alleen muziek)',
+  radioNextBtn: 'Volgend nummer',
+  radioScanning: 'Lokale frequenties scannen...',
+  radioMusicBadge: 'Muziek',
+  radioFreshStart: 'Net gestart!',
+  radioTalkSkipped: 'DJ / Praat (geskipt)',
+  radioAdSkipped: 'Reclame (geskipt)',
+  radioOfflineBadge: 'Offline',
+  radioGenreAll: 'Alles',
+  radioGenreHits: 'Pop / Hits',
+  radioGenreDance: 'Dance',
+  radioGenreRock: 'Rock',
+  radioGenreChill: 'Chill',
+  radioGenreNonstop: 'Non-Stop',
 };
 
 const EN: TranslationBundle = {
@@ -520,6 +554,23 @@ const EN: TranslationBundle = {
   voiceQuickHint1: 'Be quiet',
   voiceQuickHint2: 'How long left?',
   voiceQuickHint3: 'Find fuel',
+  radioChip: 'Music Radio',
+  radioModalTitle: 'Non-Stop Music Scanner',
+  radioModalSub: 'Scans all nearby stations & frequencies simultaneously — skips DJ talk & ads automatically and jumps to songs just starting.',
+  radioAutoDjLabel: 'Auto-DJ (all stations, music only)',
+  radioNextBtn: 'Next song',
+  radioScanning: 'Scanning local frequencies...',
+  radioMusicBadge: 'Music',
+  radioFreshStart: 'Just started!',
+  radioTalkSkipped: 'DJ / Talk (skipped)',
+  radioAdSkipped: 'Ads (skipped)',
+  radioOfflineBadge: 'Offline',
+  radioGenreAll: 'All',
+  radioGenreHits: 'Pop / Hits',
+  radioGenreDance: 'Dance',
+  radioGenreRock: 'Rock',
+  radioGenreChill: 'Chill',
+  radioGenreNonstop: 'Non-Stop',
 };
 
 const DE: TranslationBundle = {

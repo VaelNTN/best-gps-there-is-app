@@ -160,6 +160,8 @@ export interface CustomVehicle {
 
 export type VoiceStyle = 'smooth' | 'calm' | 'crisp' | 'standard';
 
+export type RadioGenreFilter = 'all' | 'hits' | 'dance' | 'rock' | 'chill' | 'nonstop';
+
 export interface AppSettings {
   language: LanguageCode;
   mode: TransportMode;
@@ -171,6 +173,7 @@ export interface AppSettings {
   voiceRate: number;
   voicePitch: number;
   voiceUri: string;
+  radioGenreFilter: RadioGenreFilter;
   autoReroute: boolean;
   showRoadSigns: boolean;
   configuredModes: Partial<Record<TransportMode, boolean>>;

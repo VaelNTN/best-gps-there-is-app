@@ -73,6 +73,7 @@ export function createDefaultSettings(): AppSettings {
     voiceRate: VOICE_STYLE_PRESETS.smooth.rate,
     voicePitch: VOICE_STYLE_PRESETS.smooth.pitch,
     voiceUri: '',
+    radioGenreFilter: 'all',
     autoReroute: true,
     showRoadSigns: true,
     configuredModes: {},

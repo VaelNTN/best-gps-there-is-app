@@ -21,6 +21,10 @@ export type ParsedVoiceCommand =
   | { kind: 'recenter' }
   | { kind: 'set_mode'; mode: TransportMode }
   | { kind: 'set_theme'; theme: 'day' | 'night' }
+  | { kind: 'radio_on' }
+  | { kind: 'radio_off' }
+  | { kind: 'radio_next' }
+  | { kind: 'radio_what_playing' }
   | { kind: 'help' }
   | { kind: 'greeting' }
   | { kind: 'thanks' }
@@ -159,6 +163,32 @@ export function parseVoiceCommand(transcript: string, _lang: LanguageCode = 'nl'
   }
   if (/\b(schakel\s+naar|zet\s+op|ik\s+ga)?\s*(te\s+voet|lopen|wandelen|walk|on\s+foot|zu\s+fuss|a\s+pied)\b/.test(s)) {
     return { kind: 'set_mode', mode: 'pedestrian' };
+  }
+
+  // 11b. Radio control ("radio aan", "radio uit", "volgend nummer", "welk nummer is dit")
+  if (
+    /\b(radio\s+uit|muziek\s+uit|zet\s+(de\s+)?(radio|muziek)\s+uit|stop\s+(de\s+)?(radio|muziek)|radio\s+off|stop\s+music|music\s+off|radio\s+aus|arrete\s+la\s+radio)\b/.test(
+      s
+    )
+  ) {
+    return { kind: 'radio_off' };
+  }
+  if (
+    /\b(radio\s+aan|muziek\s+aan|zet\s+(de\s+)?(radio|muziek)\s+aan|speel\s+muziek|start\s+(de\s+)?(radio|muziek)|play\s+music|radio\s+on|start\s+radio|radio\s+an|mets\s+la\s+radio)\b/.test(
+      s
+    )
+  ) {
+    return { kind: 'radio_on' };
+  }
+  if (
+    /\b(volgend\s+nummer|volgende\s+zender|ander\s+nummer|andere\s+zender|sla\s+over|next\s+song|next\s+track|next\s+station|skip\s+song|naechstes\s+lied|chanson\s+suivante)\b/.test(
+      s
+    )
+  ) {
+    return { kind: 'radio_next' };
+  }
+  if (/\b(welk\s+nummer|wat\s+speelt\s+er|wie\s+zingt|what\s+song|whats\s+playing|what\s+is\s+playing|welches\s+lied|quelle\s+chanson)\b/.test(s)) {
+    return { kind: 'radio_what_playing' };
   }
 
   // 12. Home & Work

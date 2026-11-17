@@ -26,6 +26,11 @@ export interface AssistantReplyTemplates {
   modeChanged: (modeLabel: string) => string;
   themeDay: string;
   themeNight: string;
+  radioOn: string;
+  radioOff: string;
+  radioNext: (stationName?: string) => string;
+  radioPlaying: (track: string, station: string) => string;
+  radioNothingPlaying: string;
   unknown: (raw: string) => string;
   poiNames: Record<PoiFilterKind, string>;
   modeNames: Record<TransportMode, string>;
@@ -34,9 +39,9 @@ export interface AssistantReplyTemplates {
 const NL_REPLIES: AssistantReplyTemplates = {
   muted: 'Oké, ik zwijg even. Zeg praat weer als je me weer nodig hebt.',
   unmuted: 'Ik ben er weer! Spraakbegeleiding staat weer aan.',
-  greeting: 'Hallo! Road Mapper luistert. Zeg bijvoorbeeld hoelang nog, zoek diesel, of zwijg even.',
+  greeting: 'Hallo! Road Mapper luistert. Zeg bijvoorbeeld hoelang nog, zoek diesel, radio aan, of zwijg even.',
   thanks: 'Graag gedaan! Rustige rit verder.',
-  help: 'Je kunt zeggen: zwijg even, praat weer, hoelang nog, volgende afslag, hoe snel rijd ik, waar ben ik, waar kan ik tanken, of navigeer naar Antwerpen.',
+  help: 'Je kunt zeggen: zwijg even, praat weer, radio aan, radio uit, volgend nummer, hoelang nog, hoe snel rijd ik, waar ben ik, of navigeer naar Antwerpen.',
   noActiveRoute: 'Er is nog geen actieve route. Zeg bijvoorbeeld navigeer naar Brussel, of tik op de kaart.',
   eta: (duration, distance, etaTime) => `Nog ${duration}, dat is ${distance}. Je komt rond ${etaTime} aan.`,
   nextTurn: (dist, instruction) => `Over ${dist}, ${instruction}.`,
@@ -68,6 +73,11 @@ const NL_REPLIES: AssistantReplyTemplates = {
   modeChanged: (modeLabel) => `Modus gewijzigd naar ${modeLabel}.`,
   themeDay: 'Dagmodus ingeschakeld.',
   themeNight: 'Nachtmodus ingeschakeld.',
+  radioOn: 'Non-stop muziekradio wordt gestart. Ik zoek direct muziek zonder praat.',
+  radioOff: 'Radio staat uit.',
+  radioNext: (stationName) => (stationName ? `Overgeschakeld naar muziek op ${stationName}.` : 'Op zoek naar het volgende muzieknummer.'),
+  radioPlaying: (track, station) => (track ? `Je luistert naar ${track}, via ${station}.` : `Je luistert naar muziek op ${station}.`),
+  radioNothingPlaying: 'De radio staat momenteel uit. Zeg radio aan om te starten.',
   unknown: (raw) => `Ik verstond ${raw}, maar ken dat commando niet. Zeg wat kan ik zeggen voor voorbeelden.`,
   poiNames: {
     fuel: 'tanken',
@@ -87,9 +97,9 @@ const NL_REPLIES: AssistantReplyTemplates = {
 const EN_REPLIES: AssistantReplyTemplates = {
   muted: 'Okay, going quiet for now. Say talk to me whenever you need guidance again.',
   unmuted: 'I am back! Voice guidance is enabled again.',
-  greeting: 'Hello! Road Mapper is listening. Try asking how long left, find fuel, or be quiet.',
+  greeting: 'Hello! Road Mapper is listening. Try asking how long left, radio on, find fuel, or be quiet.',
   thanks: 'You are welcome! Have a safe drive.',
-  help: 'You can say: be quiet, speak again, how long left, next turn, how fast am I going, where am I, find fuel, or navigate to London.',
+  help: 'You can say: be quiet, speak again, radio on, next song, how long left, how fast am I going, where am I, or navigate to London.',
   noActiveRoute: 'There is no active route yet. Say navigate to a city, or tap on the map.',
   eta: (duration, distance, etaTime) => `About ${duration} remaining, ${distance} to go. Estimated arrival at ${etaTime}.`,
   nextTurn: (dist, instruction) => `In ${dist}, ${instruction}.`,
@@ -117,6 +127,11 @@ const EN_REPLIES: AssistantReplyTemplates = {
   modeChanged: (modeLabel) => `Switched mode to ${modeLabel}.`,
   themeDay: 'Day mode enabled.',
   themeNight: 'Night mode enabled.',
+  radioOn: 'Starting non-stop music radio across nearby stations.',
+  radioOff: 'Radio turned off.',
+  radioNext: (stationName) => (stationName ? `Switched to fresh music on ${stationName}.` : 'Finding the next song.'),
+  radioPlaying: (track, station) => (track ? `Now playing ${track}, on ${station}.` : `Listening to music on ${station}.`),
+  radioNothingPlaying: 'The radio is currently off. Say radio on to start.',
   unknown: (raw) => `I heard ${raw}, but did not recognize that command. Say help for examples.`,
   poiNames: {
     fuel: 'fuel',
@@ -137,9 +152,9 @@ const DE_REPLIES: AssistantReplyTemplates = {
   ...EN_REPLIES,
   muted: 'Okay, ich bin still. Sag sprich wieder, wenn du mich wieder brauchst.',
   unmuted: 'Ich bin wieder da! Die Sprachführung ist wieder aktiv.',
-  greeting: 'Hallo! Road Mapper hört zu. Frag zum Beispiel wie lange noch, tanken suchen, oder sei still.',
+  greeting: 'Hallo! Road Mapper hört zu. Frag zum Beispiel wie lange noch, Radio an, tanken suchen, oder sei still.',
   thanks: 'Gern geschehen! Gute Fahrt weiterhin.',
-  help: 'Du kannst sagen: sei still, sprich wieder, wie lange noch, nächste Ausfahrt, wie schnell, wo bin ich, oder navigiere nach Berlin.',
+  help: 'Du kannst sagen: sei still, sprich wieder, Radio an, nächstes Lied, wie lange noch, wie schnell, wo bin ich, oder navigiere nach Berlin.',
   noActiveRoute: 'Es ist noch keine Route aktiv.',
   eta: (duration, distance, etaTime) => `Noch ${duration}, das sind ${distance}. Ankunft gegen ${etaTime}.`,
   nextTurn: (dist, instruction) => `In ${dist}, ${instruction}.`,
@@ -158,6 +173,11 @@ const DE_REPLIES: AssistantReplyTemplates = {
   modeChanged: (modeLabel) => `Modus gewechselt zu ${modeLabel}.`,
   themeDay: 'Tagmodus aktiviert.',
   themeNight: 'Nachtmodus aktiviert.',
+  radioOn: 'Non-Stop Musikradio startet.',
+  radioOff: 'Radio ausgeschaltet.',
+  radioNext: (stationName) => (stationName ? `Wechsle zu Musik auf ${stationName}.` : 'Suche nächstes Lied.'),
+  radioPlaying: (track, station) => (track ? `Es läuft ${track} auf ${station}.` : `Musik läuft auf ${station}.`),
+  radioNothingPlaying: 'Das Radio ist aus.',
   poiNames: {
     fuel: 'Tankstellen',
     parking: 'Parkplätze',
