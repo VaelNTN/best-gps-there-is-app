@@ -167,6 +167,14 @@ export type VoiceStyle = 'smooth' | 'calm' | 'crisp' | 'standard';
 
 export type RadioGenreFilter = 'all' | 'hits' | 'dance' | 'rock' | 'chill' | 'nonstop';
 
+export interface BlockedRadioStation {
+  id: string;
+  name: string;
+  streamUrl: string;
+  frequencyLabel?: string;
+  blockedAt: number;
+}
+
 export interface AppSettings {
   language: LanguageCode;
   mode: TransportMode;
@@ -179,6 +187,8 @@ export interface AppSettings {
   voicePitch: number;
   voiceUri: string;
   radioGenreFilter: RadioGenreFilter;
+  radioAutoDj: boolean;
+  blockedRadioStations: BlockedRadioStation[];
   autoReroute: boolean;
   showRoadSigns: boolean;
   configuredModes: Partial<Record<TransportMode, boolean>>;

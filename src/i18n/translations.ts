@@ -181,6 +181,15 @@ export interface TranslationBundle {
   radioGenreRock: string;
   radioGenreChill: string;
   radioGenreNonstop: string;
+  radioBlockBtn: string;
+  radioBlockTitle: string;
+  radioUnblockBtn: string;
+  radioStationsTab: (count: number) => string;
+  radioBlockedTab: (count: number) => string;
+  radioNoBlocked: string;
+  radioNoStations: string;
+  radioBlockedToast: (name: string) => string;
+  radioRefreshBtn: string;
   routeBestOfLabel: (count: number) => string;
   routeZeroDetourLabel: string;
   routeSavedVsAlt: (dist: string, dur: string) => string;
@@ -379,6 +388,15 @@ const NL: TranslationBundle = {
   radioGenreRock: 'Rock',
   radioGenreChill: 'Chill',
   radioGenreNonstop: 'Non-Stop',
+  radioBlockBtn: 'Blokkeer',
+  radioBlockTitle: 'Zender blokkeren (nooit meer gebruiken)',
+  radioUnblockBtn: 'Deblokkeren',
+  radioStationsTab: (count) => `Zenders (${count})`,
+  radioBlockedTab: (count) => `Geblokkeerd (${count})`,
+  radioNoBlocked: 'Nog geen zenders geblokkeerd.',
+  radioNoStations: 'Geen zenders beschikbaar. Pas het genre aan of deblokkeer zenders.',
+  radioBlockedToast: (name) => `🚫 ${name} geblokkeerd`,
+  radioRefreshBtn: 'Ververs',
   routeBestOfLabel: (count) => `⚡ Allerbeste & snelste uit ${count} routes`,
   routeZeroDetourLabel: 'Geen onnodige omweg',
   routeSavedVsAlt: (dist, dur) => `Bespaart tot ${dist} / ${dur}`,
@@ -577,6 +595,15 @@ const EN: TranslationBundle = {
   radioGenreRock: 'Rock',
   radioGenreChill: 'Chill',
   radioGenreNonstop: 'Non-Stop',
+  radioBlockBtn: 'Block',
+  radioBlockTitle: 'Block station (never play again)',
+  radioUnblockBtn: 'Unblock',
+  radioStationsTab: (count) => `Stations (${count})`,
+  radioBlockedTab: (count) => `Blocked (${count})`,
+  radioNoBlocked: 'No blocked stations yet.',
+  radioNoStations: 'No stations available. Adjust genre or unblock stations.',
+  radioBlockedToast: (name) => `🚫 Blocked ${name}`,
+  radioRefreshBtn: 'Refresh',
   routeBestOfLabel: (count) => `⚡ Best & fastest of ${count} routes`,
   routeZeroDetourLabel: 'Zero unnecessary detours',
   routeSavedVsAlt: (dist, dur) => `Saves up to ${dist} / ${dur}`,

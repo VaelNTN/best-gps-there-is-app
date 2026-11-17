@@ -25,8 +25,9 @@ import java.util.regex.Pattern;
 
 @CapacitorPlugin(name = "RadioIcy")
 public class RadioIcyPlugin extends Plugin {
-    private static final Pattern STREAM_TITLE_PATTERN = Pattern.compile("StreamTitle='([^']*)'");
-    private final ExecutorService executor = Executors.newFixedThreadPool(8);
+    private static final Pattern STREAM_TITLE_PATTERN = Pattern.compile("StreamTitle='(.*?)';");
+    private static final Pattern STREAM_TITLE_FALLBACK = Pattern.compile("StreamTitle='([^']*)'");
+    private final ExecutorService executor = Executors.newFixedThreadPool(12);
 
     @PluginMethod
     public void probeStations(PluginCall call) {
@@ -39,7 +40,7 @@ public class RadioIcyPlugin extends Plugin {
         }
 
         List<String> urls = new ArrayList<>();
-        int maxCount = Math.min(urlsArr.length(), 18);
+        int maxCount = Math.min(urlsArr.length(), 14);
         for (int i = 0; i < maxCount; i++) {
             String u = urlsArr.optString(i, "").trim();
             if (!u.isEmpty()) {
@@ -97,9 +98,9 @@ public class RadioIcyPlugin extends Plugin {
                 URL u = new URL(currentUrl);
                 conn = (HttpURLConnection) u.openConnection();
                 conn.setInstanceFollowRedirects(false);
-                conn.setConnectTimeout(3000);
-                conn.setReadTimeout(2800);
-                conn.setRequestProperty("User-Agent", "RoadMapperRadio/1.0");
+                conn.setConnectTimeout(2800);
+                conn.setReadTimeout(2600);
+                conn.setRequestProperty("User-Agent", "RoadMapperRadio/1.1");
                 conn.setRequestProperty("Icy-MetaData", "1");
                 conn.setRequestProperty("Accept", "*/*");
                 conn.connect();
@@ -167,14 +168,24 @@ public class RadioIcyPlugin extends Plugin {
                             Matcher m = STREAM_TITLE_PATTERN.matcher(metaStr);
                             if (m.find()) {
                                 obj.put("streamTitle", m.group(1).trim());
+                            } else {
+                                Matcher fb = STREAM_TITLE_FALLBACK.matcher(metaStr);
+                                if (fb.find()) {
+                                    obj.put("streamTitle", fb.group(1).trim());
+                                }
                             }
                         }
                     }
-                    obj.put("ok", audioReadTotal > 512);
+                    obj.put("ok", audioReadTotal > 128);
                 } else {
-                    // Verify stream actively emits audio bytes
-                    int n = is.read(buf, 0, buf.length);
-                    obj.put("ok", n > 64);
+                    // Verify stream actively emits audio bytes across initial reads
+                    int audioReadTotal = 0;
+                    while (audioReadTotal < 256 && (System.currentTimeMillis() - startMs) < 1600) {
+                        int n = is.read(buf, 0, buf.length);
+                        if (n <= 0) break;
+                        audioReadTotal += n;
+                    }
+                    obj.put("ok", audioReadTotal > 0);
                 }
                 return obj;
             }

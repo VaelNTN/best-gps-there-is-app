@@ -94,6 +94,8 @@ class BestGpsApp {
   private voiceBannerTimer = 0;
 
   private radioSnap: RadioSnapshot = radioEngine.getSnapshot();
+  private radioModalTab: 'stations' | 'blocked' = 'stations';
+  private radioModalPointerDown = false;
 
   private modal: ModalKind = null;
   private launcherOpen = true;
@@ -105,6 +107,8 @@ class BestGpsApp {
   constructor(root: HTMLElement) {
     this.root = root;
     this.settings = loadSettings();
+    radioEngine.setAutoDj(this.settings.radioAutoDj);
+    radioEngine.setBlockedStations(this.settings.blockedRadioStations);
     this.applyBodyTheme();
     this.renderShell();
     voiceNav.setSpeechDuckCallback((speaking) => {
@@ -381,6 +385,11 @@ class BestGpsApp {
         </div>
         <div class="radio-mini-actions">
           <button type="button" class="round-icon-btn" id="btn-radio-next" title="${bundle.radioNextBtn}">⏭️</button>
+          ${
+            st
+              ? `<button type="button" class="round-icon-btn" id="btn-radio-mini-block" title="${bundle.radioBlockTitle}">🚫</button>`
+              : ''
+          }
           <button type="button" class="round-icon-btn" id="btn-radio-scanner" title="${bundle.radioModalTitle}">📡</button>
           <button type="button" class="round-icon-btn" id="btn-radio-stop" title="${bundle.stopNav}">⏹️</button>
         </div>
@@ -397,6 +406,10 @@ class BestGpsApp {
     this.root.querySelector('#btn-radio-scanner')?.addEventListener('click', openScanner);
     this.root.querySelector('#btn-radio-next')?.addEventListener('click', () => {
       void radioEngine.skipToNextMusic('manual_skip');
+    });
+    this.root.querySelector('#btn-radio-mini-block')?.addEventListener('click', () => {
+      const curr = this.radioSnap.currentStation;
+      if (curr) this.blockRadioStation(curr);
     });
     this.root.querySelector('#btn-radio-stop')?.addEventListener('click', () => {
       radioEngine.stop();
@@ -418,14 +431,13 @@ class BestGpsApp {
     if (navBtn) {
       navBtn.classList.toggle('mic-handsfree', this.radioSnap.isPlaying);
     }
-    if (this.modal === 'radio') {
+    if (this.modal === 'radio' && !this.radioModalPointerDown) {
       const body = this.root.querySelector<HTMLElement>('#modal-radio-body');
       if (body) {
         const prevScroll = body.querySelector<HTMLElement>('.radio-stations-list')?.scrollTop ?? 0;
         body.innerHTML = this.renderRadioModalBody(bundle);
         const newList = body.querySelector<HTMLElement>('.radio-stations-list');
         if (newList) newList.scrollTop = prevScroll;
-        this.bindRadioModalEvents(body);
       }
     }
   }
@@ -2795,8 +2807,43 @@ class BestGpsApp {
     });
   }
 
+  private blockRadioStation(st: { id: string; name: string; streamUrl: string; frequencyLabel?: string }): void {
+    const normUrl = st.streamUrl.trim().toLowerCase();
+    const normName = st.name.trim().toLowerCase();
+    const already = this.settings.blockedRadioStations.some(
+      (b) =>
+        b.id === st.id ||
+        (normUrl && b.streamUrl.trim().toLowerCase() === normUrl) ||
+        (normName && b.name.trim().toLowerCase() === normName)
+    );
+    if (!already) {
+      this.settings.blockedRadioStations = [
+        {
+          id: st.id,
+          name: st.name,
+          streamUrl: st.streamUrl,
+          frequencyLabel: st.frequencyLabel,
+          blockedAt: Date.now(),
+        },
+        ...this.settings.blockedRadioStations,
+      ];
+      saveSettings(this.settings);
+    }
+    radioEngine.setBlockedStations(this.settings.blockedRadioStations);
+    this.showToast(t(this.settings.language).radioBlockedToast(st.name));
+  }
+
+  private unblockRadioStation(idOrUrl: string): void {
+    this.settings.blockedRadioStations = this.settings.blockedRadioStations.filter(
+      (b) => b.id !== idOrUrl && b.streamUrl !== idOrUrl
+    );
+    saveSettings(this.settings);
+    radioEngine.setBlockedStations(this.settings.blockedRadioStations);
+  }
+
   private renderRadioModalBody(bundle: ReturnType<typeof t>): string {
     const snap = this.radioSnap;
+    const blocked = this.settings.blockedRadioStations;
     const genres: [RadioGenreFilter, string][] = [
       ['all', bundle.radioGenreAll],
       ['hits', bundle.radioGenreHits],
@@ -2836,6 +2883,9 @@ class BestGpsApp {
         <button type="button" class="secondary-btn" id="btn-radio-modal-next">
           ⏭️ ${bundle.radioNextBtn}
         </button>
+        <button type="button" class="secondary-btn" id="btn-radio-modal-refresh" title="${bundle.radioRefreshBtn}">
+          🔄
+        </button>
       </div>
 
       ${
@@ -2850,7 +2900,8 @@ class BestGpsApp {
             <div class="radio-track-line">${this.escapeHtml(st.lastTitle || bundle.radioMusicBadge)}</div>
             <div class="radio-dsp-meter"><div class="radio-dsp-fill" style="width:${conf}%;"></div></div>
           </div>
-          <span style="font-size:11px;font-weight:800;color:var(--green);">${conf}% 🎵</span>
+          <span style="font-size:11px;font-weight:800;color:var(--green);flex-shrink:0;">${conf}% 🎵</span>
+          <button type="button" class="radio-block-btn" id="btn-radio-modal-block-current" title="${bundle.radioBlockTitle}">🚫</button>
         </div>
       `
           : ''
@@ -2881,66 +2932,157 @@ class BestGpsApp {
         <span>🗣️✕ ${snap.switchedAvoidedTalkCount}</span>
       </div>
 
+      <div class="radio-tabs-row">
+        <button type="button" class="pill-chip ${this.radioModalTab === 'stations' ? 'active' : ''}" data-radio-tab="stations">
+          📻 ${bundle.radioStationsTab(snap.stations.length)}
+        </button>
+        <button type="button" class="pill-chip ${this.radioModalTab === 'blocked' ? 'active' : ''}" data-radio-tab="blocked">
+          🚫 ${bundle.radioBlockedTab(blocked.length)}
+        </button>
+      </div>
+
       <div class="radio-stations-list">
         ${
-          snap.stations.length === 0
-            ? `<div style="font-size:12px;color:var(--muted);padding:10px 0;">⏳ ${bundle.radioScanning}</div>`
-            : snap.stations
-                .map((station) => {
-                  const isCurrent = st?.id === station.id && snap.isPlaying;
-                  const dimmed = station.state === 'talk' || station.state === 'ad' || station.state === 'offline';
-                  const badge = stateBadge(station.state);
-                  const distLabel =
-                    typeof station.distanceKm === 'number' ? ` • ${station.distanceKm} km` : '';
-                  const subLine = station.lastTitle || station.tags.slice(0, 3).join(', ') || station.stateName || '';
-                  return `
-                  <button type="button" class="radio-station-row ${isCurrent ? 'active' : ''} ${dimmed ? 'dimmed' : ''}" data-radio-station="${this.escapeHtml(station.id)}">
+          this.radioModalTab === 'blocked'
+            ? blocked.length === 0
+              ? `<div style="font-size:12px;color:var(--muted);padding:12px 4px;">${bundle.radioNoBlocked}</div>`
+              : blocked
+                  .map(
+                    (b) => `
+                  <div class="radio-station-row">
                     <div class="radio-station-meta">
                       <div class="radio-mini-top">
-                        <span class="radio-freq-pill">${this.escapeHtml(station.frequencyLabel)}</span>
-                        <span class="radio-station-name">${this.escapeHtml(station.name)}</span>
-                        <span style="font-size:10px;color:var(--muted);flex-shrink:0;">${distLabel}</span>
+                        ${b.frequencyLabel ? `<span class="radio-freq-pill">${this.escapeHtml(b.frequencyLabel)}</span>` : ''}
+                        <span class="radio-station-name">${this.escapeHtml(b.name)}</span>
                       </div>
-                      <div class="radio-track-line">${this.escapeHtml(subLine)}</div>
+                      <div class="radio-track-line">${this.escapeHtml(b.streamUrl)}</div>
                     </div>
-                    <span class="radio-badge ${badge.cls}">${badge.text}</span>
-                  </button>
+                    <button type="button" class="radio-unblock-btn" data-radio-unblock="${this.escapeHtml(b.id)}">
+                      ${bundle.radioUnblockBtn}
+                    </button>
+                  </div>
+                `
+                  )
+                  .join('')
+            : snap.stations.length === 0
+              ? `<div style="font-size:12px;color:var(--muted);padding:10px 0;">${
+                  snap.isLoading ? `⏳ ${bundle.radioScanning}` : bundle.radioNoStations
+                }</div>`
+              : snap.stations
+                  .map((station) => {
+                    const isCurrent = st?.id === station.id && snap.isPlaying;
+                    const dimmed = station.state === 'talk' || station.state === 'ad' || station.state === 'offline';
+                    const badge = stateBadge(station.state);
+                    const distLabel =
+                      typeof station.distanceKm === 'number' ? ` • ${station.distanceKm} km` : '';
+                    const subLine = station.lastTitle || station.tags.slice(0, 3).join(', ') || station.stateName || '';
+                    return `
+                  <div class="radio-station-row ${isCurrent ? 'active' : ''} ${dimmed ? 'dimmed' : ''}">
+                    <button type="button" class="radio-station-main" data-radio-station="${this.escapeHtml(station.id)}">
+                      <div class="radio-station-meta">
+                        <div class="radio-mini-top">
+                          <span class="radio-freq-pill">${this.escapeHtml(station.frequencyLabel)}</span>
+                          <span class="radio-station-name">${this.escapeHtml(station.name)}</span>
+                          <span style="font-size:10px;color:var(--muted);flex-shrink:0;">${distLabel}</span>
+                        </div>
+                        <div class="radio-track-line">${this.escapeHtml(subLine)}</div>
+                      </div>
+                      <span class="radio-badge ${badge.cls}">${badge.text}</span>
+                    </button>
+                    <button type="button" class="radio-block-btn" data-radio-block="${this.escapeHtml(station.id)}" title="${bundle.radioBlockTitle}">🚫</button>
+                  </div>
                 `;
-                })
-                .join('')
+                  })
+                  .join('')
         }
       </div>
     `;
   }
 
   private bindRadioModalEvents(body: HTMLElement): void {
-    body.querySelector('#btn-radio-modal-playstop')?.addEventListener('click', () => {
-      if (this.radioSnap.isPlaying) {
-        radioEngine.stop();
-      } else {
-        void radioEngine.start(this.currentFix.lat, this.currentFix.lon);
+    const clearPointer = (): void => {
+      this.radioModalPointerDown = false;
+    };
+    body.addEventListener('pointerdown', () => {
+      this.radioModalPointerDown = true;
+    });
+    body.addEventListener('pointerup', clearPointer);
+    body.addEventListener('pointercancel', clearPointer);
+
+    body.addEventListener('change', (e) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.id === 'set-radio-autodj') {
+        const checked = (target as HTMLInputElement).checked;
+        this.settings.radioAutoDj = checked;
+        saveSettings(this.settings);
+        radioEngine.setAutoDj(checked);
       }
     });
-    body.querySelector('#btn-radio-modal-next')?.addEventListener('click', () => {
-      void radioEngine.skipToNextMusic('manual_skip');
-    });
-    body.querySelector<HTMLInputElement>('#set-radio-autodj')?.addEventListener('change', (e) => {
-      radioEngine.setAutoDj((e.target as HTMLInputElement).checked);
-    });
-    body.querySelectorAll<HTMLButtonElement>('[data-radio-genre]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const g = btn.dataset.radioGenre as RadioGenreFilter;
-        this.settings.radioGenreFilter = g;
+
+    body.addEventListener('click', (e) => {
+      this.radioModalPointerDown = false;
+      const el = (e.target as HTMLElement | null)?.closest<HTMLElement>('button');
+      if (!el) return;
+
+      if (el.id === 'btn-radio-modal-playstop') {
+        if (this.radioSnap.isPlaying) {
+          radioEngine.stop();
+        } else {
+          void radioEngine.start(this.currentFix.lat, this.currentFix.lon);
+        }
+        return;
+      }
+
+      if (el.id === 'btn-radio-modal-next') {
+        void radioEngine.skipToNextMusic('manual_skip');
+        return;
+      }
+
+      if (el.id === 'btn-radio-modal-refresh') {
+        void radioEngine.refreshLocalStations(this.currentFix.lat, this.currentFix.lon, true);
+        return;
+      }
+
+      if (el.id === 'btn-radio-modal-block-current') {
+        if (this.radioSnap.currentStation) {
+          this.blockRadioStation(this.radioSnap.currentStation);
+        }
+        return;
+      }
+
+      const tab = el.dataset.radioTab as 'stations' | 'blocked' | undefined;
+      if (tab) {
+        this.radioModalTab = tab;
+        this.updateRadioDom();
+        return;
+      }
+
+      const genre = el.dataset.radioGenre as RadioGenreFilter | undefined;
+      if (genre) {
+        this.settings.radioGenreFilter = genre;
         saveSettings(this.settings);
-        radioEngine.setGenreFilter(g, this.currentFix.lat, this.currentFix.lon);
-        this.renderModal();
-      });
-    });
-    body.querySelectorAll<HTMLButtonElement>('[data-radio-station]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.radioStation;
-        if (id) void radioEngine.playSpecificStation(id);
-      });
+        radioEngine.setGenreFilter(genre, this.currentFix.lat, this.currentFix.lon);
+        this.updateRadioDom();
+        return;
+      }
+
+      const blockId = el.dataset.radioBlock;
+      if (blockId) {
+        const st = this.radioSnap.stations.find((s) => s.id === blockId);
+        if (st) this.blockRadioStation(st);
+        return;
+      }
+
+      const unblockId = el.dataset.radioUnblock;
+      if (unblockId) {
+        this.unblockRadioStation(unblockId);
+        return;
+      }
+
+      const stationId = el.dataset.radioStation;
+      if (stationId) {
+        void radioEngine.playSpecificStation(stationId);
+      }
     });
   }
 

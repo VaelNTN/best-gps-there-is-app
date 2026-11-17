@@ -1,5 +1,14 @@
 import { detectInitialLanguage } from '../i18n/translations';
-import { AppSettings, CustomVehicle, GeocodedPlace, SavedPlace, TruckPresetId, TruckProfile, VoiceStyle } from '../types/navigation';
+import {
+  AppSettings,
+  BlockedRadioStation,
+  CustomVehicle,
+  GeocodedPlace,
+  SavedPlace,
+  TruckPresetId,
+  TruckProfile,
+  VoiceStyle,
+} from '../types/navigation';
 
 const STORAGE_KEY = 'best_gps_there_is_settings_v1';
 
@@ -74,6 +83,8 @@ export function createDefaultSettings(): AppSettings {
     voicePitch: VOICE_STYLE_PRESETS.smooth.pitch,
     voiceUri: '',
     radioGenreFilter: 'all',
+    radioAutoDj: true,
+    blockedRadioStations: [],
     autoReroute: true,
     showRoadSigns: true,
     configuredModes: {},
@@ -118,6 +129,17 @@ export function loadSettings(): AppSettings {
             profile: { ...defaults.truck, ...(v.profile ?? {}) },
           }))
         : defaults.savedVehicles;
+    const blockedRadioStations: BlockedRadioStation[] = Array.isArray(parsed.blockedRadioStations)
+      ? parsed.blockedRadioStations
+          .filter((b): b is BlockedRadioStation => Boolean(b && (b.id || b.streamUrl || b.name)))
+          .map((b) => ({
+            id: String(b.id || b.streamUrl || b.name),
+            name: String(b.name || 'Radio').trim(),
+            streamUrl: String(b.streamUrl || '').trim(),
+            frequencyLabel: typeof b.frequencyLabel === 'string' ? b.frequencyLabel : undefined,
+            blockedAt: typeof b.blockedAt === 'number' ? b.blockedAt : Date.now(),
+          }))
+      : [];
     return {
       ...defaults,
       ...parsed,
@@ -125,6 +147,8 @@ export function loadSettings(): AppSettings {
       voiceRate: typeof parsed.voiceRate === 'number' ? Math.max(0.65, Math.min(1.35, parsed.voiceRate)) : defaults.voiceRate,
       voicePitch: typeof parsed.voicePitch === 'number' ? Math.max(0.65, Math.min(1.35, parsed.voicePitch)) : defaults.voicePitch,
       voiceUri: typeof parsed.voiceUri === 'string' ? parsed.voiceUri : '',
+      radioAutoDj: typeof parsed.radioAutoDj === 'boolean' ? parsed.radioAutoDj : defaults.radioAutoDj,
+      blockedRadioStations,
       configuredModes: { ...defaults.configuredModes, ...(parsed.configuredModes ?? {}) },
       activeVehicleId: parsed.activeVehicleId ?? savedVehicles[0]?.id ?? null,
       savedVehicles,

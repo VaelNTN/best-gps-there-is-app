@@ -39,10 +39,13 @@ export interface ClassifiedTitle {
 const TALK_STATION_REGEX =
   /\b(talk\s*radio|news\s*radio|all\s*news|sport\s*radio|podcast|spoken|parliament|traffic\s*info|weather\s*radio|nieuwszender|praatradio|bnr\s+nieuws|france\s+info|deutschlandfunk|inforadio|bbc\s+radio\s*4|bbc\s+world\s+service|talksport|lbc\s+news)\b/i;
 
-const TALK_TITLE_REGEX =
-  /\b(nieuws|journaal|het\s+journaal|weerbericht|verkeer|verkeersinfo|filebericht|reclame|advert|commercial|promo|station\s*id|jingle|talk\s*show|live\s*show|de\s+ochtendshow|ochtendspits|middagshow|avondspits|interview|debat|commentary|commentaar|sportverslag|news\s*update|headline|headlines|weather|traffic|podcast|nachrichten|verkehr|wetter|werbung|infos|journal|m[eé]t[eé]o|publicit[eé]|noticias|tr[aá]fico|tiempo|wiadomo[sś]ci|reklama|haberler|reklam)\b/i;
+const EXPLICIT_TALK_TITLE_REGEX =
+  /\b(het\s+journaal|journaal|weerbericht|verkeersinfo|filebericht|nieuwsupdate|nieuwsbulletin|news\s*update|news\s*bulletin|weather\s*report|traffic\s*report|station\s*id|talk\s*show|de\s+ochtendshow|ochtendspits|middagshow|avondspits|sportverslag|nachrichten|verkehrsmeldung|wettermeldung|publicit[eé]|wiadomo[sś]ci|reklama|haberler|reklam)\b/i;
 
-const AD_TITLE_REGEX = /\b(reclame|commercial|advert|werbung|publicit[eé]|sponsor|spot|ad\s+break|reklam)\b/i;
+const GENERIC_TALK_TITLE_REGEX =
+  /\b(nieuws|weerbericht|verkeer|talk\s*show|live\s*show|interview|debat|commentary|commentaar|headlines|weather|traffic|podcast|nachrichten|verkehr|wetter|infos|journal|m[eé]t[eé]o|noticias|tr[aá]fico)\b/i;
+
+const AD_TITLE_REGEX = /\b(reclame|advertentie|commercial|werbung|publicit[eé]|ad\s+break|reklam|sponsored\s+by)\b/i;
 
 export function extractFmFrequency(name: string, tags: string[] = []): string {
   const hay = `${name} ${tags.join(' ')}`;
@@ -96,7 +99,7 @@ export function classifyStreamTitle(rawTitle: string, stationName = ''): Classif
     return { kind: 'ad', artist: '', track: cleaned, normalized: cleaned.toLowerCase() };
   }
 
-  if (TALK_TITLE_REGEX.test(cleaned)) {
+  if (EXPLICIT_TALK_TITLE_REGEX.test(cleaned)) {
     return { kind: 'talk', artist: '', track: cleaned, normalized: cleaned.toLowerCase() };
   }
 
@@ -117,10 +120,14 @@ export function classifyStreamTitle(rawTitle: string, stationName = ''): Classif
     if (stLower && (artist.toLowerCase() === stLower || track.toLowerCase() === stLower)) {
       return { kind: 'unknown', artist: '', track: '', normalized: lower };
     }
-    if (TALK_TITLE_REGEX.test(artist) || TALK_TITLE_REGEX.test(track)) {
+    if (EXPLICIT_TALK_TITLE_REGEX.test(artist) || EXPLICIT_TALK_TITLE_REGEX.test(track)) {
       return { kind: 'talk', artist, track, normalized: lower };
     }
     return { kind: 'music', artist, track, normalized: `${artist.toLowerCase()} - ${track.toLowerCase()}` };
+  }
+
+  if (GENERIC_TALK_TITLE_REGEX.test(cleaned)) {
+    return { kind: 'talk', artist: '', track: cleaned, normalized: lower };
   }
 
   // Fallback: looks like a tagline/jingle rather than Artist - Track
@@ -191,7 +198,7 @@ export function analyzeFftSpectrum(
   const avgVocal = vocalCount > 0 ? vocalSum / vocalCount : 0;
   const avgAir = airCount > 0 ? airSum / airCount : 0;
 
-  if (avgTotal < 12) {
+  if (avgTotal < 7) {
     return {
       rms: avgTotal,
       isSilence: true,
@@ -208,17 +215,17 @@ export function analyzeFftSpectrum(
   const airRatio = avgAir / Math.max(1, avgVocal);
 
   // Music typically has audible low-end bass (>= 0.85x vocal) OR bright hi-hat/air (>= 0.25x vocal).
-  // Dry studio DJ speech / radio commentary lacks bass (< 0.65x vocal) AND high air (< 0.22x vocal) while vocal dominates (> 1.45x total).
-  let score = 55;
+  // Dry studio DJ speech / radio commentary lacks bass (< 0.55x vocal) AND high air (< 0.14x vocal) while vocal dominates (> 1.75x total).
+  let score = 58;
   if (bassRatio >= 1.15) score += 26;
   else if (bassRatio >= 0.82) score += 15;
-  else if (bassRatio < 0.55) score -= 22;
+  else if (bassRatio < 0.50) score -= 22;
 
   if (airRatio >= 0.34) score += 18;
   else if (airRatio >= 0.22) score += 8;
-  else if (airRatio < 0.14) score -= 12;
+  else if (airRatio < 0.12) score -= 12;
 
-  if (vocalRatio > 1.75 && bassRatio < 0.72) score -= 22;
+  if (vocalRatio > 1.85 && bassRatio < 0.68) score -= 22;
   else if (vocalRatio < 1.35) score += 10;
 
   const musicConfidence = Math.max(0, Math.min(100, Math.round(score)));
@@ -229,7 +236,7 @@ export function analyzeFftSpectrum(
     vocalRatio,
     airRatio,
     musicConfidence,
-    isLikelySpeech: musicConfidence < 42,
+    isLikelySpeech: musicConfidence < 34,
   };
 }
 
