@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Best GPS There Is</string>
+    <string name="title_activity_main">Best GPS There Is</string>
+    <string name="package_name">com.bestgpsthereis.app</string>
+    <string name="custom_url_scheme">com.bestgpsthereis.app</string>
+</resources>

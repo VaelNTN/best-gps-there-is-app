@@ -1,0 +1,26 @@
+{
+  "name": "best-gps-there-is",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Best GPS There Is - Multilingual turn-by-turn GPS navigation for Walking, Bicycle, Car, and Heavy Trucks",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "cap:sync": "npm run build && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/device": "^8.0.3",
+    "@capacitor/geolocation": "^8.2.4",
+    "maplibre-gl": "^5.24.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}
