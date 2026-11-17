@@ -62,7 +62,10 @@ class BestGpsApp {
   private isNavigating = false;
   private isSimulating = false;
   private simTimer: number | null = null;
-  private simCoordIndex = 0;
+  private simDistanceM = 0;
+  private simCumDist: number[] = [];
+  private simMultiplier: 1 | 3 | 8 | 20 = 3;
+  private lastHudRenderAt = 0;
   private followCamera = true;
   private lastSpokenStepKey = '';
   private lastRerouteAt = 0;
@@ -253,7 +256,7 @@ class BestGpsApp {
             ⚙️ ${this.settings.mode === 'truck' ? truckSummary : bundle.vehicleSettings}
           </button>
           <button class="pill-chip ${this.settings.showRoadSigns ? 'active' : ''}" id="btn-toggle-signs">
-            🚸 ${bundle.roadSignsChip}
+            🚸 ${bundle.roadSignsChip}${this.settings.showRoadSigns && this.roadSigns.length > 0 ? ` (${this.roadSigns.length})` : ''}
           </button>
           ${poiButtons
             .map(
@@ -520,7 +523,7 @@ class BestGpsApp {
       <div class="nav-top-banner ${this.settings.mode === 'truck' ? 'truck-banner' : ''}">
         <div class="nav-arrow-box">${this.maneuverArrow(progress.nextStep.maneuver)}</div>
         <div class="nav-instr-col">
-          <div class="nav-dist-next">${bundle.inDistance} ${this.formatDistance(progress.distanceToStepM)}</div>
+          <div class="nav-dist-next" id="nav-dist-next">${bundle.inDistance} ${this.formatDistance(progress.distanceToStepM)}</div>
           <div class="nav-street-next">${this.escapeHtml(progress.nextStep.instruction)}</div>
         </div>
       </div>
@@ -528,32 +531,41 @@ class BestGpsApp {
       <div class="nav-bottom-dock">
         ${isVehicle ? this.renderMiniSignsStripHtml() : ''}
         <div class="nav-bottom-bar">
-          ${
-            isVehicle
-              ? `
-            <div class="speed-badge ${speeding ? 'speeding' : ''}">
-              <strong>${sp.value}</strong>
-              <small>${sp.unit}</small>
-            </div>
-            <div class="speed-limit-holder">
-              ${this.renderSpeedLimitSignHtml(38)}
-            </div>
-          `
-              : `<div class="speed-badge" style="border-color:var(--green);"><strong>🚶</strong></div>`
-          }
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:16px;font-weight:900;color:var(--green);">
-              ${this.formatDuration(progress.remainingSeconds)} • ${this.formatDistance(progress.remainingMeters)}
-            </div>
-            <div style="font-size:11px;color:var(--muted);">
-              ${bundle.etaLabel}: <b>${this.formatEta(progress.remainingSeconds)}</b> • ${bundle.modes[this.settings.mode]}${
-                this.isSimulating ? ' (DEMO)' : ''
-              }
+          <div class="nav-bar-main">
+            ${
+              isVehicle
+                ? `
+              <div class="speed-badge ${speeding ? 'speeding' : ''}">
+                <strong id="hud-speed-val">${sp.value}</strong>
+                <small>${sp.unit}</small>
+              </div>
+              <div class="speed-limit-holder">
+                ${this.renderSpeedLimitSignHtml(38)}
+              </div>
+            `
+                : `<div class="speed-badge" style="border-color:var(--green);"><strong>🚶</strong></div>`
+            }
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:16px;font-weight:900;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${this.formatDuration(progress.remainingSeconds)} • ${this.formatDistance(progress.remainingMeters)}
+              </div>
+              <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${bundle.etaLabel}: <b>${this.formatEta(progress.remainingSeconds)}</b> • ${bundle.modes[this.settings.mode]}${
+                  this.isSimulating ? ' (DEMO)' : ''
+                }
+              </div>
             </div>
           </div>
-          <button class="round-icon-btn" id="btn-nav-voice">${this.settings.voiceEnabled ? '🔊' : '🔇'}</button>
-          <button class="round-icon-btn" id="btn-nav-recenter" title="${bundle.recenter}">🎯</button>
-          <button class="danger-btn" id="btn-stop-nav">${bundle.stopNav}</button>
+          <div class="nav-bar-actions">
+            ${
+              this.isSimulating
+                ? `<button class="sim-mult-btn" id="btn-sim-mult">${this.simMultiplier}x</button>`
+                : ''
+            }
+            <button class="round-icon-btn" id="btn-nav-voice">${this.settings.voiceEnabled ? '🔊' : '🔇'}</button>
+            <button class="round-icon-btn" id="btn-nav-recenter" title="${bundle.recenter}">🎯</button>
+            <button class="danger-btn" id="btn-stop-nav">${bundle.stopNav}</button>
+          </div>
         </div>
       </div>
     `;
@@ -776,6 +788,7 @@ class BestGpsApp {
       if (this.routes[0] && !this.isNavigating) {
         this.mapCtrl?.fitRoute(this.routes[0]);
       }
+      void this.refreshRoadSigns(true);
     } catch {
       this.routes = [];
       this.mapCtrl?.renderRoutes([], 0);
@@ -840,7 +853,8 @@ class BestGpsApp {
     this.lastSignFetchFix = { lat: this.currentFix.lat, lon: this.currentFix.lon };
     this.lastSignFetchAt = now;
     try {
-      const snap = await fetchRoadSignsAround(this.currentFix.lat, this.currentFix.lon, this.settings);
+      const activeRoute = this.routes[this.selectedRouteIdx] ?? null;
+      const snap = await fetchRoadSignsAround(this.currentFix.lat, this.currentFix.lon, this.settings, activeRoute);
       this.currentMaxSpeedKmh = snap.currentMaxSpeedKmh;
       this.roadSigns = snap.signs;
       this.mapCtrl?.setRoadSigns(this.settings.showRoadSigns ? this.roadSigns : []);
@@ -859,6 +873,8 @@ class BestGpsApp {
       }
 
       if (this.isNavigating) {
+        this.renderUi();
+      } else if (!this.searchOpen) {
         this.renderUi();
       } else {
         this.updateVehicleCockpitDom();
@@ -880,6 +896,46 @@ class BestGpsApp {
     this.renderUi();
   }
 
+  private interpolateAlongRoute(
+    coords: [number, number][],
+    cumDist: number[],
+    targetM: number
+  ): { lat: number; lon: number; bearing: number; finished: boolean } {
+    if (coords.length === 0) return { lat: this.currentFix.lat, lon: this.currentFix.lon, bearing: 0, finished: true };
+    if (coords.length === 1) return { lat: coords[0][1], lon: coords[0][0], bearing: 0, finished: true };
+    const total = cumDist[cumDist.length - 1] || 0;
+    if (targetM >= total) {
+      const a = coords[coords.length - 2];
+      const b = coords[coords.length - 1];
+      return {
+        lat: b[1],
+        lon: b[0],
+        bearing: computeBearing({ lat: a[1], lon: a[0] }, { lat: b[1], lon: b[0] }),
+        finished: true,
+      };
+    }
+
+    let lo = 0;
+    let hi = cumDist.length - 2;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (cumDist[mid] <= targetM) lo = mid;
+      else hi = mid - 1;
+    }
+    const segStart = cumDist[lo];
+    const segEnd = cumDist[lo + 1];
+    const segLen = segEnd - segStart;
+    const frac = segLen > 0 ? Math.max(0, Math.min(1, (targetM - segStart) / segLen)) : 0;
+    const a = coords[lo];
+    const b = coords[lo + 1];
+    return {
+      lat: a[1] + (b[1] - a[1]) * frac,
+      lon: a[0] + (b[0] - a[0]) * frac,
+      bearing: computeBearing({ lat: a[1], lon: a[0] }, { lat: b[1], lon: b[0] }),
+      finished: false,
+    };
+  }
+
   private startNavigation(simulate: boolean): void {
     const route = this.routes[this.selectedRouteIdx];
     if (!route) return;
@@ -887,6 +943,7 @@ class BestGpsApp {
     this.isSimulating = simulate;
     this.followCamera = true;
     this.lastSpokenStepKey = '';
+    this.lastHudRenderAt = 0;
 
     const bundle = t(this.settings.language);
     if (route.steps[0]) {
@@ -894,47 +951,66 @@ class BestGpsApp {
     }
 
     if (simulate) {
-      this.simCoordIndex = 0;
-      const stepStride = Math.max(1, Math.floor(route.coordinates.length / 110));
+      this.simDistanceM = 0;
+      this.simCumDist = [0];
+      for (let i = 1; i < route.coordinates.length; i++) {
+        const a = route.coordinates[i - 1];
+        const b = route.coordinates[i];
+        this.simCumDist.push(
+          this.simCumDist[i - 1] + haversineMeters({ lat: a[1], lon: a[0] }, { lat: b[1], lon: b[0] })
+        );
+      }
+
+      const startPos = this.interpolateAlongRoute(route.coordinates, this.simCumDist, 0);
+      this.currentFix = {
+        lat: startPos.lat,
+        lon: startPos.lon,
+        heading: startPos.bearing,
+        speedKmh: this.settings.mode === 'pedestrian' ? 5 : this.settings.mode === 'bicycle' ? 21 : 50,
+        accuracyM: 5,
+        timestamp: Date.now(),
+        isSimulated: true,
+      };
+      void this.refreshRoadSigns(true);
+
       if (this.simTimer !== null) window.clearInterval(this.simTimer);
+      const tickMs = 100;
       this.simTimer = window.setInterval(() => {
         if (!this.isNavigating || !this.isSimulating) return;
         const active = this.routes[this.selectedRouteIdx];
-        if (!active) return;
-        const curr = active.coordinates[this.simCoordIndex];
-        const next = active.coordinates[Math.min(active.coordinates.length - 1, this.simCoordIndex + stepStride)];
-        if (!curr) return;
-        const bearing = next ? computeBearing({ lat: curr[1], lon: curr[0] }, { lat: next[1], lon: next[0] }) : 0;
+        if (!active || this.simCumDist.length < 2) return;
 
         let simSpeed =
           this.settings.mode === 'pedestrian'
             ? 5
             : this.settings.mode === 'bicycle'
-              ? 21
+              ? 22
               : this.settings.mode === 'truck'
-                ? Math.min(80, this.currentMaxSpeedKmh ?? 78)
-                : Math.min(120, this.currentMaxSpeedKmh ?? 52);
+                ? Math.min(82, this.currentMaxSpeedKmh ?? 76)
+                : Math.min(120, this.currentMaxSpeedKmh ?? 54);
         if (this.settings.mode !== 'pedestrian') {
-          simSpeed = Math.max(12, Math.round(simSpeed + Math.sin(this.simCoordIndex * 0.4) * 3));
+          simSpeed = Math.max(15, Math.round(simSpeed + Math.sin(this.simDistanceM * 0.008) * 2));
         }
 
+        this.simDistanceM += (simSpeed / 3.6) * (tickMs / 1000) * this.simMultiplier;
+        const pos = this.interpolateAlongRoute(active.coordinates, this.simCumDist, this.simDistanceM);
+
         this.handleIncomingFix({
-          lat: curr[1],
-          lon: curr[0],
-          heading: bearing,
+          lat: pos.lat,
+          lon: pos.lon,
+          heading: pos.bearing,
           speedKmh: simSpeed,
           accuracyM: 5,
           timestamp: Date.now(),
           isSimulated: true,
         });
-        if (this.simCoordIndex >= active.coordinates.length - 1) {
+
+        if (pos.finished) {
           this.stopNavigation(true);
           this.showToast(`🏁 ${bundle.arrived}`);
           void voiceNav.speak(bundle.arrived, this.settings.language, this.settings.voiceEnabled, true);
-          return;
         }
-        this.simCoordIndex = Math.min(active.coordinates.length - 1, this.simCoordIndex + stepStride);
-      }, 650);
+      }, tickMs);
     }
 
     this.mapCtrl?.updateGpsFix(this.currentFix, true);
@@ -1025,7 +1101,16 @@ class BestGpsApp {
       }
     }
 
-    this.renderUi();
+    const now = Date.now();
+    if (!fix.isSimulated || now - this.lastHudRenderAt >= 350) {
+      this.lastHudRenderAt = now;
+      this.renderUi();
+    } else {
+      const speedEl = this.root.querySelector<HTMLElement>('#hud-speed-val');
+      if (speedEl) speedEl.textContent = String(this.formatSpeed(this.currentFix.speedKmh).value);
+      const distEl = this.root.querySelector<HTMLElement>('#nav-dist-next');
+      if (distEl) distEl.textContent = `${bundle.inDistance} ${this.formatDistance(prog.distanceToStepM)}`;
+    }
   }
 
   private computeNavProgress(route: RouteOption): {
@@ -1075,6 +1160,12 @@ class BestGpsApp {
       this.settings.voiceEnabled = !this.settings.voiceEnabled;
       saveSettings(this.settings);
       if (!this.settings.voiceEnabled) void voiceNav.stop();
+      this.renderUi();
+    });
+    this.root.querySelector('#btn-sim-mult')?.addEventListener('click', () => {
+      const order: (1 | 3 | 8 | 20)[] = [1, 3, 8, 20];
+      const idx = order.indexOf(this.simMultiplier);
+      this.simMultiplier = order[(idx + 1) % order.length];
       this.renderUi();
     });
     this.bindSignPillEvents();

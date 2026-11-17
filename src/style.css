@@ -572,12 +572,36 @@ body,
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 10px 12px;
+  padding: 9px 12px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 8px;
   box-shadow: var(--shadow);
+}
+
+.nav-bar-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nav-bar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.sim-mult-btn {
+  border: 1px solid var(--amber);
+  background: rgba(245, 158, 11, 0.22);
+  color: var(--amber);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .vehicle-cockpit {

@@ -251,7 +251,8 @@ export class MapController {
         zoom: 16.4,
         pitch: 52,
         bearing: fix.heading ?? this.map.getBearing(),
-        duration: 500,
+        duration: fix.isSimulated ? 130 : 350,
+        easing: (x) => x,
       });
     }
   }

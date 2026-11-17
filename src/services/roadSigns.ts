@@ -1,4 +1,4 @@
-import { AppSettings, LanguageCode, RoadSignItem, RoadSignKind, RoadSignsSnapshot } from '../types/navigation';
+import { AppSettings, LanguageCode, RoadSignItem, RoadSignKind, RoadSignsSnapshot, RouteOption } from '../types/navigation';
 import { haversineMeters } from './routing';
 
 interface OverpassElement {
@@ -197,8 +197,11 @@ export function parseMaxSpeedKmh(raw?: string): number | null {
   if (!raw) return null;
   const v = raw.trim().toLowerCase();
   if (!v || v === 'none' || v === 'signals' || v === 'variable') return null;
-  if (v === 'walk' || v.includes('living_street')) return 15;
+  if (v === 'walk' || v.includes('living_street')) return 20;
+  if (v.includes('zone30') || v.includes('zone_30') || v.endsWith(':30')) return 30;
+  if (v.includes('zone20') || v.endsWith(':20')) return 20;
   if (v.endsWith(':urban') || v === 'urban') return 50;
+  if (v.startsWith('be:rural')) return 70;
   if (v.startsWith('nl:rural')) return 80;
   if (v.startsWith('de:rural')) return 100;
   if (v.includes(':rural')) return 80;
@@ -210,6 +213,28 @@ export function parseMaxSpeedKmh(raw?: string): number | null {
     const n = Number(numMatch[1]);
     if (n >= 5 && n <= 160) return n;
   }
+  return null;
+}
+
+function inferSpeedFromWayTags(tags: Record<string, string>, isTruck: boolean): number | null {
+  if (isTruck) {
+    const hgvSpd = parseMaxSpeedKmh(tags['maxspeed:hgv']);
+    if (hgvSpd !== null) return hgvSpd;
+  }
+  const direct =
+    parseMaxSpeedKmh(tags.maxspeed) ??
+    parseMaxSpeedKmh(tags['zone:maxspeed']) ??
+    parseMaxSpeedKmh(tags['source:maxspeed']) ??
+    parseMaxSpeedKmh(tags['maxspeed:type']);
+  if (direct !== null) return isTruck ? Math.min(direct, 90) : direct;
+
+  const hw = (tags.highway || '').toLowerCase();
+  if (hw === 'motorway') return isTruck ? 90 : 120;
+  if (hw === 'trunk') return isTruck ? 80 : 90;
+  if (hw === 'primary') return isTruck ? 70 : 70;
+  if (hw === 'secondary') return 70;
+  if (hw === 'tertiary' || hw === 'unclassified' || hw === 'residential') return 50;
+  if (hw === 'living_street') return 20;
   return null;
 }
 
@@ -387,8 +412,11 @@ function parseSignFromTags(
   const lang = settings.language;
   const ts = (tags.traffic_sign || '').toUpperCase();
 
-  // 1. Speed limit
-  const speedKmh = parseMaxSpeedKmh(tags.maxspeed);
+  // 1. Speed limit (explicit maxspeed, zone:maxspeed, source:maxspeed, or traffic_sign codes)
+  const speedKmh =
+    parseMaxSpeedKmh(tags.maxspeed) ??
+    parseMaxSpeedKmh(tags['zone:maxspeed']) ??
+    parseMaxSpeedKmh(tags['source:maxspeed']);
   if (speedKmh !== null) {
     out.push({
       id: `${id}-spd`,
@@ -400,8 +428,8 @@ function parseSignFromTags(
       maxSpeedKmh: speedKmh,
       priority: 4,
     });
-  } else if (/A1[-:](\d+)|DE:274[-:](\d+)|FR:B14[-:](\d+)/.test(ts)) {
-    const m = ts.match(/(?:A1|DE:274|FR:B14)[-:](\d+)/);
+  } else if (/(?:A1|C43|DE:274|FR:B14|BE:C43)[-:](\d+)/.test(ts)) {
+    const m = ts.match(/(?:A1|C43|DE:274|FR:B14|BE:C43)[-:](\d+)/);
     if (m) {
       const n = Number(m[1]);
       if (n >= 5 && n <= 140) {
@@ -504,8 +532,8 @@ function parseSignFromTags(
     });
   }
 
-  // 7. HGV / Hazmat / Access bans
-  if (tags.hgv === 'no' || ts.includes('NL:C7') || ts.includes('DE:253')) {
+  // 7. HGV / Hazmat / Access bans (NL, BE, DE, FR)
+  if (tags.hgv === 'no' || ts.includes('C7') || ts.includes('BE:C23') || ts.includes('DE:253')) {
     const danger = settings.mode === 'truck';
     out.push({
       id: `${id}-nohgv`,
@@ -519,7 +547,7 @@ function parseSignFromTags(
     });
   }
 
-  if (tags.hazmat === 'no' || tags['hazmat:water'] === 'no' || ts.includes('NL:C22') || ts.includes('DE:261')) {
+  if (tags.hazmat === 'no' || tags['hazmat:water'] === 'no' || ts.includes('C22') || ts.includes('DE:261')) {
     const danger = settings.mode === 'truck' && settings.truck.hazmat;
     out.push({
       id: `${id}-noadr`,
@@ -533,7 +561,7 @@ function parseSignFromTags(
     });
   }
 
-  if (tags.bicycle === 'no' || ts.includes('NL:C14') || ts.includes('DE:254')) {
+  if (tags.bicycle === 'no' || ts.includes('C14') || ts.includes('BE:C11') || ts.includes('DE:254')) {
     const danger = settings.mode === 'bicycle';
     out.push({
       id: `${id}-nobike`,
@@ -547,7 +575,7 @@ function parseSignFromTags(
     });
   }
 
-  if (ts.includes('NL:C1') || ts.includes('NL:C2') || ts.includes('DE:250') || ts.includes('DE:267')) {
+  if (ts.includes('NL:C1') || ts.includes('NL:C2') || ts.includes('BE:C1') || ts.includes('DE:250') || ts.includes('DE:267')) {
     out.push({
       id: `${id}-noent`,
       kind: 'no_entry',
@@ -560,7 +588,7 @@ function parseSignFromTags(
   }
 
   // 8. Highway & warning signs
-  if (tags.highway === 'stop' || ts.includes('NL:B7') || ts.includes('DE:206')) {
+  if (tags.highway === 'stop' || ts.includes('B7') || ts.includes('BE:B5') || ts.includes('DE:206')) {
     out.push({
       id: `${id}-stop`,
       kind: 'stop',
@@ -570,7 +598,7 @@ function parseSignFromTags(
       lon,
       priority: 8,
     });
-  } else if (tags.highway === 'give_way' || ts.includes('NL:B6') || ts.includes('DE:205')) {
+  } else if (tags.highway === 'give_way' || ts.includes('B6') || ts.includes('BE:B1') || ts.includes('DE:205')) {
     out.push({
       id: `${id}-gw`,
       kind: 'give_way',
@@ -602,7 +630,7 @@ function parseSignFromTags(
       title: getTitle('traffic_signals', lang),
       lat,
       lon,
-      priority: 5,
+      priority: 6,
     });
   }
 
@@ -630,7 +658,31 @@ function parseSignFromTags(
     });
   }
 
-  if (tags.highway === 'crossing' && (tags.crossing === 'zebra' || tags.crossing === 'marked')) {
+  if (tags.junction === 'roundabout' || tags.highway === 'mini_roundabout') {
+    out.push({
+      id: `${id}-rnd`,
+      kind: 'roundabout',
+      label: 'RND',
+      title: getTitle('roundabout', lang),
+      lat,
+      lon,
+      priority: 6,
+    });
+  }
+
+  if (tags.oneway === 'yes' && !tags.junction) {
+    out.push({
+      id: `${id}-ow`,
+      kind: 'oneway',
+      label: '1W',
+      title: getTitle('oneway', lang),
+      lat,
+      lon,
+      priority: 2,
+    });
+  }
+
+  if (tags.highway === 'crossing' && (tags.crossing === 'zebra' || tags.crossing === 'marked' || tags.crossing === 'traffic_signals')) {
     out.push({
       id: `${id}-ped`,
       kind: 'pedestrian_crossing',
@@ -642,7 +694,7 @@ function parseSignFromTags(
     });
   }
 
-  if (ts.includes('NL:G11') || ts.includes('DE:237')) {
+  if (ts.includes('G11') || ts.includes('BE:D7') || ts.includes('DE:237')) {
     out.push({
       id: `${id}-cyc`,
       kind: 'cycleway',
@@ -657,10 +709,31 @@ function parseSignFromTags(
   return out;
 }
 
+export function extractSignsFromRoute(route: RouteOption, settings: AppSettings): RoadSignItem[] {
+  const out: RoadSignItem[] = [];
+  const lang = settings.language;
+  for (let i = 0; i < route.steps.length; i++) {
+    const st = route.steps[i];
+    if (st.maneuver === 'roundabout') {
+      out.push({
+        id: `route-rnd-${i}`,
+        kind: 'roundabout',
+        label: 'RND',
+        title: getTitle('roundabout', lang),
+        lat: st.lat,
+        lon: st.lon,
+        priority: 6,
+      });
+    }
+  }
+  return out;
+}
+
 const signCache = new Map<string, { at: number; data: RoadSignsSnapshot }>();
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ];
 
@@ -668,7 +741,7 @@ async function queryOverpass(query: string): Promise<{ elements?: OverpassElemen
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 9500);
+      const timer = window.setTimeout(() => controller.abort(), 9000);
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
@@ -689,7 +762,8 @@ async function queryOverpass(query: string): Promise<{ elements?: OverpassElemen
 export async function fetchRoadSignsAround(
   lat: number,
   lon: number,
-  settings: AppSettings
+  settings: AppSettings,
+  activeRoute?: RouteOption | null
 ): Promise<RoadSignsSnapshot> {
   const cellKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${settings.mode}:${settings.truck.heightM}:${settings.truck.weightT}:${settings.language}`;
   const cached = signCache.get(cellKey);
@@ -697,21 +771,28 @@ export async function fetchRoadSignsAround(
     return cached.data;
   }
 
-  const radius = settings.mode === 'truck' || settings.mode === 'auto' ? 1400 : 800;
+  const radius = settings.mode === 'truck' || settings.mode === 'auto' ? 1100 : 700;
+  const isTruck = settings.mode === 'truck';
 
-  // Query 1 block: active road (75m) + traffic sign nodes & critical restriction ways in radius
+  // Careful ordering & filtering:
+  // 1) Nearest roads (120m) so currentMaxSpeedKmh is always found
+  // 2) Specific road sign nodes (NO unmarked highway=crossing spam!)
+  // 3) Important road ways (speed limits, roundabouts, oneways, HGV/height/weight limits)
   const query = `
     [out:json][timeout:10];
     (
-      way(around:65,${lat},${lon})["highway"]["maxspeed"];
-      way(around:65,${lat},${lon})["highway"]["name"];
+      way(around:120,${lat},${lon})["highway"];
       node(around:${radius},${lat},${lon})["traffic_sign"];
-      node(around:${radius},${lat},${lon})["highway"~"^(stop|give_way|traffic_signals|speed_camera|crossing)$"];
+      node(around:${radius},${lat},${lon})["highway"~"^(stop|give_way|traffic_signals|speed_camera|mini_roundabout)$"];
+      node(around:${radius},${lat},${lon})["highway"="crossing"]["crossing"~"zebra|marked|traffic_signals"];
       node(around:${radius},${lat},${lon})["railway"="level_crossing"];
       node(around:${radius},${lat},${lon})["traffic_calming"~"^(bump|hump|table)$"];
       node(around:${radius},${lat},${lon})["maxheight"];
       node(around:${radius},${lat},${lon})["maxwidth"];
       node(around:${radius},${lat},${lon})["maxweight"];
+      way(around:${radius},${lat},${lon})["highway"]["maxspeed"];
+      way(around:${radius},${lat},${lon})["highway"]["zone:maxspeed"];
+      way(around:${radius},${lat},${lon})["junction"="roundabout"];
       way(around:${radius},${lat},${lon})["maxheight"];
       way(around:${radius},${lat},${lon})["maxwidth"];
       way(around:${radius},${lat},${lon})["maxweight"];
@@ -720,17 +801,24 @@ export async function fetchRoadSignsAround(
       way(around:${radius},${lat},${lon})["hgv"="no"];
       way(around:${radius},${lat},${lon})["hazmat"="no"];
     );
-    out center 140;
+    out center 220;
   `;
 
   const json = await queryOverpass(query);
+  const routeSigns = activeRoute ? extractSignsFromRoute(activeRoute, settings) : [];
+
   if (!json?.elements) {
-    return { currentMaxSpeedKmh: null, currentRoadName: null, signs: [] };
+    return {
+      currentMaxSpeedKmh: null,
+      currentRoadName: null,
+      signs: routeSigns.slice(0, 45),
+    };
   }
 
   let currentMaxSpeedKmh: number | null = null;
+  let bestRoadDist = Infinity;
   let currentRoadName: string | null = null;
-  const rawSigns: RoadSignItem[] = [];
+  const rawSigns: RoadSignItem[] = [...routeSigns];
 
   for (const el of json.elements) {
     const tags = el.tags ?? {};
@@ -739,20 +827,26 @@ export async function fetchRoadSignsAround(
     if (pLat === undefined || pLon === undefined) continue;
 
     const dist = haversineMeters({ lat, lon }, { lat: pLat, lon: pLon });
-    if (el.type === 'way' && dist <= 90) {
-      const spd = parseMaxSpeedKmh(tags.maxspeed);
-      if (spd !== null && currentMaxSpeedKmh === null) currentMaxSpeedKmh = spd;
-      if (tags.name && !currentRoadName) currentRoadName = tags.name;
+
+    if (el.type === 'way' && tags.highway && dist <= 130) {
+      const hw = tags.highway;
+      if (hw !== 'footway' && hw !== 'path' && hw !== 'steps' && dist < bestRoadDist) {
+        const inferred = inferSpeedFromWayTags(tags, isTruck);
+        if (inferred !== null) {
+          bestRoadDist = dist;
+          currentMaxSpeedKmh = inferred;
+        }
+        if (tags.name) currentRoadName = tags.name;
+      }
     }
 
     const parsed = parseSignFromTags(`${el.type}-${el.id}`, pLat, pLon, tags, settings);
     rawSigns.push(...parsed);
   }
 
-  // Deduplicate nearby identical signs within 45m so intersections stay clean
   const sorted = rawSigns.sort((a, b) => {
-    const dA = haversineMeters({ lat, lon }, a) - (a.priority ?? 0) * 18;
-    const dB = haversineMeters({ lat, lon }, b) - (b.priority ?? 0) * 18;
+    const dA = haversineMeters({ lat, lon }, a) - (a.priority ?? 0) * 28;
+    const dB = haversineMeters({ lat, lon }, b) - (b.priority ?? 0) * 28;
     return dA - dB;
   });
 
@@ -762,12 +856,12 @@ export async function fetchRoadSignsAround(
       (k) =>
         k.kind === cand.kind &&
         k.label === cand.label &&
-        haversineMeters(k, cand) < 55
+        haversineMeters(k, cand) < 65
     );
     if (!dup) {
       kept.push(cand);
     }
-    if (kept.length >= 42) break;
+    if (kept.length >= 48) break;
   }
 
   const result: RoadSignsSnapshot = {
