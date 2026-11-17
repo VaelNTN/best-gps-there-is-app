@@ -106,6 +106,10 @@ export interface TranslationBundle {
   distanceLabel: string;
   providerLabel: string;
   simSpeed: string;
+  roadSignsChip: string;
+  signsNearbyLabel: string;
+  truckSignDanger: string;
+  speedLimitLabel: string;
 }
 
 const NL: TranslationBundle = {
@@ -221,6 +225,10 @@ const NL: TranslationBundle = {
   distanceLabel: 'Afstand',
   providerLabel: 'Engine',
   simSpeed: 'Demosnelheid',
+  roadSignsChip: 'Borden',
+  signsNearbyLabel: 'Borden op weg',
+  truckSignDanger: 'Let op: beperking voor jouw voertuig!',
+  speedLimitLabel: 'Max',
 };
 
 const EN: TranslationBundle = {
@@ -336,6 +344,10 @@ const EN: TranslationBundle = {
   distanceLabel: 'Distance',
   providerLabel: 'Engine',
   simSpeed: 'Demo speed',
+  roadSignsChip: 'Signs',
+  signsNearbyLabel: 'Road signs nearby',
+  truckSignDanger: 'Warning: restriction for your vehicle!',
+  speedLimitLabel: 'Max',
 };
 
 const DE: TranslationBundle = {
@@ -436,6 +448,9 @@ const DE: TranslationBundle = {
   },
   etaLabel: 'Ankunft',
   distanceLabel: 'Entfernung',
+  roadSignsChip: 'Schilder',
+  signsNearbyLabel: 'Schilder in der Nähe',
+  truckSignDanger: 'Achtung: Beschränkung für dein Fahrzeug!',
 };
 
 const FR: TranslationBundle = {
@@ -513,6 +528,9 @@ const FR: TranslationBundle = {
   },
   etaLabel: 'Arrivée',
   distanceLabel: 'Distance',
+  roadSignsChip: 'Panneaux',
+  signsNearbyLabel: 'Panneaux à proximité',
+  truckSignDanger: 'Attention : restriction pour votre véhicule !',
 };
 
 const ES: TranslationBundle = {
@@ -572,6 +590,9 @@ const ES: TranslationBundle = {
   },
   etaLabel: 'Llegada',
   distanceLabel: 'Distancia',
+  roadSignsChip: 'Señales',
+  signsNearbyLabel: 'Señales cercanas',
+  truckSignDanger: '¡Atención: restricción para tu vehículo!',
 };
 
 const PL: TranslationBundle = {
@@ -629,6 +650,9 @@ const PL: TranslationBundle = {
   },
   etaLabel: 'Przyjazd',
   distanceLabel: 'Dystans',
+  roadSignsChip: 'Znaki',
+  signsNearbyLabel: 'Znaki w pobliżu',
+  truckSignDanger: 'Uwaga: ograniczenie dla Twojego pojazdu!',
 };
 
 const TR: TranslationBundle = {
@@ -686,6 +710,9 @@ const TR: TranslationBundle = {
   },
   etaLabel: 'Varış',
   distanceLabel: 'Mesafe',
+  roadSignsChip: 'Tabelalar',
+  signsNearbyLabel: 'Yakındaki tabelalar',
+  truckSignDanger: 'Dikkat: aracınız için kısıtlama!',
 };
 
 const DICTIONARIES: Record<LanguageCode, TranslationBundle> = { nl: NL, en: EN, de: DE, fr: FR, es: ES, pl: PL, tr: TR };

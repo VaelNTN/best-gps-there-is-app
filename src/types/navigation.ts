@@ -110,6 +110,47 @@ export interface RouteOption {
   fallbackNotice?: string;
 }
 
+export type RoadSignKind =
+  | 'maxspeed'
+  | 'maxheight'
+  | 'maxwidth'
+  | 'maxweight'
+  | 'maxaxleload'
+  | 'maxlength'
+  | 'no_hgv'
+  | 'no_hazmat'
+  | 'no_entry'
+  | 'no_bicycle'
+  | 'stop'
+  | 'give_way'
+  | 'traffic_signals'
+  | 'speed_camera'
+  | 'railway_crossing'
+  | 'bump'
+  | 'roundabout'
+  | 'oneway'
+  | 'cycleway'
+  | 'pedestrian_crossing';
+
+export interface RoadSignItem {
+  id: string;
+  kind: RoadSignKind;
+  label: string;
+  title: string;
+  lat: number;
+  lon: number;
+  maxSpeedKmh?: number;
+  numericValue?: number;
+  isDangerForMode?: boolean;
+  priority?: number;
+}
+
+export interface RoadSignsSnapshot {
+  currentMaxSpeedKmh: number | null;
+  currentRoadName: string | null;
+  signs: RoadSignItem[];
+}
+
 export interface AppSettings {
   language: LanguageCode;
   mode: TransportMode;
@@ -117,6 +158,7 @@ export interface AppSettings {
   mapTheme: MapTheme;
   voiceEnabled: boolean;
   autoReroute: boolean;
+  showRoadSigns: boolean;
   truck: TruckProfile;
   car: CarOptions;
   bike: BikeOptions;

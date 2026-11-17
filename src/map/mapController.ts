@@ -1,6 +1,7 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { GpsFix, LatLng, MapTheme, PoiItem, RouteOption, TransportMode } from '../types/navigation';
+import { renderRoadSignSvg } from '../services/roadSigns';
+import { GpsFix, LatLng, MapTheme, PoiItem, RoadSignItem, RouteOption, TransportMode } from '../types/navigation';
 
 const RASTER_FALLBACK_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -36,10 +37,12 @@ export class MapController {
   private destMarker: maplibregl.Marker | null = null;
   private startMarker: maplibregl.Marker | null = null;
   private poiMarkers: maplibregl.Marker[] = [];
+  private signMarkers: maplibregl.Marker[] = [];
   private lastRoutes: RouteOption[] = [];
   private lastSelectedIdx = 0;
   private onMapTap: (latlng: LatLng) => void;
   private onPoiTap: (poi: PoiItem) => void;
+  private onSignTap: (sign: RoadSignItem) => void;
   private fallbackApplied = false;
 
   constructor(
@@ -47,11 +50,13 @@ export class MapController {
     initialCenter: LatLng,
     theme: MapTheme,
     onMapTap: (latlng: LatLng) => void,
-    onPoiTap: (poi: PoiItem) => void
+    onPoiTap: (poi: PoiItem) => void,
+    onSignTap: (sign: RoadSignItem) => void = () => undefined
   ) {
     this.theme = theme;
     this.onMapTap = onMapTap;
     this.onPoiTap = onPoiTap;
+    this.onSignTap = onSignTap;
 
     this.map = new maplibregl.Map({
       container,
@@ -274,6 +279,27 @@ export class MapController {
   clearPois(): void {
     this.poiMarkers.forEach((m) => m.remove());
     this.poiMarkers = [];
+  }
+
+  setRoadSigns(signs: RoadSignItem[]): void {
+    this.signMarkers.forEach((m) => m.remove());
+    this.signMarkers = signs.map((sign) => {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = `road-sign-marker ${sign.isDangerForMode ? 'danger' : ''}`;
+      el.title = sign.title;
+      el.innerHTML = renderRoadSignSvg(sign.kind, sign.label, sign.isDangerForMode ? 32 : 26, Boolean(sign.isDangerForMode));
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this.onSignTap(sign);
+      });
+      return new maplibregl.Marker({ element: el }).setLngLat([sign.lon, sign.lat]).addTo(this.map);
+    });
+  }
+
+  clearRoadSigns(): void {
+    this.signMarkers.forEach((m) => m.remove());
+    this.signMarkers = [];
   }
 
   resize(): void {

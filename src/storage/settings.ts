@@ -20,6 +20,7 @@ export function createDefaultSettings(): AppSettings {
     mapTheme: 'night',
     voiceEnabled: true,
     autoReroute: true,
+    showRoadSigns: true,
     truck: {
       presetId: 'semi40',
       ...TRUCK_PRESETS.semi40,

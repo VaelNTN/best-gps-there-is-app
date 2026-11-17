@@ -3,6 +3,7 @@ import { SUPPORTED_LANGUAGES, t } from './i18n/translations';
 import { MapController } from './map/mapController';
 import { fetchNearbyPois, PoiFilterKind, reverseGeocode, searchPlaces } from './services/geocoding';
 import { DEFAULT_FALLBACK_FIX, GpsWatcher, requestInitialGpsFix } from './services/location';
+import { fetchRoadSignsAround, renderRoadSignSvg } from './services/roadSigns';
 import { calculateRoutes, computeBearing, distanceToRouteMeters, haversineMeters } from './services/routing';
 import { voiceNav } from './services/voice';
 import {
@@ -19,6 +20,7 @@ import {
   LatLng,
   ManeuverKind,
   PoiItem,
+  RoadSignItem,
   RouteOption,
   TransportMode,
   TruckPresetId,
@@ -49,6 +51,13 @@ class BestGpsApp {
 
   private activePoiFilter: PoiFilterKind | null = null;
   private poiItems: PoiItem[] = [];
+
+  private currentMaxSpeedKmh: number | null = null;
+  private roadSigns: RoadSignItem[] = [];
+  private lastSignFetchFix: LatLng | null = null;
+  private lastSignFetchAt = 0;
+  private signFetchInFlight = false;
+  private lastWarnedSignId = '';
 
   private isNavigating = false;
   private isSimulating = false;
@@ -85,7 +94,8 @@ class BestGpsApp {
         { lat: this.currentFix.lat, lon: this.currentFix.lon },
         this.settings.mapTheme,
         (latlng) => void this.handleMapTap(latlng),
-        (poi) => this.handlePoiTap(poi)
+        (poi) => this.handlePoiTap(poi),
+        (sign) => this.handleSignTap(sign)
       );
       this.mapCtrl.updateGpsFix(this.currentFix, false);
     }
@@ -100,6 +110,7 @@ class BestGpsApp {
     });
 
     this.renderUi();
+    void this.refreshRoadSigns(true);
   }
 
   private renderShell(): void {
@@ -241,6 +252,9 @@ class BestGpsApp {
           <button class="pill-chip ${this.settings.mode === 'truck' ? 'highlight' : ''}" id="btn-open-vehicle">
             ⚙️ ${this.settings.mode === 'truck' ? truckSummary : bundle.vehicleSettings}
           </button>
+          <button class="pill-chip ${this.settings.showRoadSigns ? 'active' : ''}" id="btn-toggle-signs">
+            🚸 ${bundle.roadSignsChip}
+          </button>
           ${poiButtons
             .map(
               (p) => `
@@ -265,7 +279,10 @@ class BestGpsApp {
         </button>
       </div>
 
-      ${this.renderBottomSheet(bundle, activeRoute)}
+      <div class="bottom-dock">
+        <div id="vehicle-cockpit-slot">${this.renderVehicleCockpit(bundle)}</div>
+        ${this.renderBottomSheet(bundle, activeRoute)}
+      </div>
     `;
 
     this.bindPlanningEvents();
@@ -411,9 +428,93 @@ class BestGpsApp {
     `;
   }
 
+  private renderSpeedLimitSignHtml(size = 36): string {
+    if (this.currentMaxSpeedKmh === null) {
+      return `<div class="speed-limit-unknown">--</div>`;
+    }
+    const displayLimit =
+      this.settings.units === 'imperial'
+        ? Math.round(this.currentMaxSpeedKmh * 0.621371)
+        : this.currentMaxSpeedKmh;
+    return renderRoadSignSvg('maxspeed', String(displayLimit), size);
+  }
+
+  private isOverSpeedLimit(): boolean {
+    if (this.currentMaxSpeedKmh === null) return false;
+    return this.currentFix.speedKmh > this.currentMaxSpeedKmh + 3;
+  }
+
+  private renderMiniSignsStripHtml(): string {
+    if (!this.settings.showRoadSigns || this.roadSigns.length === 0) return '';
+    const refPos = this.currentFix;
+    const nearby = this.roadSigns
+      .map((s) => ({ sign: s, distM: Math.round(haversineMeters(refPos, s)) }))
+      .filter(({ sign, distM }) => {
+        if (distM > 1400) return false;
+        if (sign.kind === 'maxspeed' && sign.maxSpeedKmh === this.currentMaxSpeedKmh && distM < 250) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const scoreA = a.distM - (a.sign.isDangerForMode ? 500 : 0) - (a.sign.priority ?? 0) * 20;
+        const scoreB = b.distM - (b.sign.isDangerForMode ? 500 : 0) - (b.sign.priority ?? 0) * 20;
+        return scoreA - scoreB;
+      })
+      .slice(0, 8);
+
+    if (nearby.length === 0) return '';
+
+    return `
+      <div class="mini-signs-strip">
+        ${nearby
+          .map(
+            ({ sign, distM }) => `
+          <button class="mini-sign-pill ${sign.isDangerForMode ? 'danger' : ''}" data-sign-id="${this.escapeHtml(sign.id)}" title="${this.escapeHtml(sign.title)}">
+            ${renderRoadSignSvg(sign.kind, sign.label, 24, Boolean(sign.isDangerForMode))}
+            <span>${this.formatDistance(distM)}</span>
+          </button>
+        `
+          )
+          .join('')}
+      </div>
+    `;
+  }
+
+  private renderVehicleCockpit(_bundle: ReturnType<typeof t>): string {
+    // Show speedometer + signs for all vehicle modes (everything except walking / pedestrian)
+    if (this.settings.mode === 'pedestrian') return '';
+    const sp = this.formatSpeed(this.currentFix.speedKmh);
+    const speeding = this.isOverSpeedLimit();
+
+    return `
+      <div class="vehicle-cockpit">
+        <div class="speed-cluster">
+          <div class="speed-badge ${speeding ? 'speeding' : ''}">
+            <strong>${sp.value}</strong>
+            <small>${sp.unit}</small>
+          </div>
+          <div class="speed-limit-holder">
+            ${this.renderSpeedLimitSignHtml(38)}
+          </div>
+        </div>
+        ${this.renderMiniSignsStripHtml()}
+      </div>
+    `;
+  }
+
+  private updateVehicleCockpitDom(): void {
+    const slot = this.root.querySelector<HTMLElement>('#vehicle-cockpit-slot');
+    if (!slot) return;
+    slot.innerHTML = this.renderVehicleCockpit(t(this.settings.language));
+    this.bindSignPillEvents();
+  }
+
   private renderActiveNavHud(route: RouteOption, bundle: ReturnType<typeof t>): string {
     const progress = this.computeNavProgress(route);
     const sp = this.formatSpeed(this.currentFix.speedKmh);
+    const isVehicle = this.settings.mode !== 'pedestrian';
+    const speeding = isVehicle && this.isOverSpeedLimit();
 
     return `
       <div class="nav-top-banner ${this.settings.mode === 'truck' ? 'truck-banner' : ''}">
@@ -424,26 +525,47 @@ class BestGpsApp {
         </div>
       </div>
 
-      <div class="nav-bottom-bar">
-        <div class="speed-badge">
-          <strong>${sp.value}</strong>
-          <small>${sp.unit}</small>
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:16px;font-weight:900;color:var(--green);">
-            ${this.formatDuration(progress.remainingSeconds)} • ${this.formatDistance(progress.remainingMeters)}
+      <div class="nav-bottom-dock">
+        ${isVehicle ? this.renderMiniSignsStripHtml() : ''}
+        <div class="nav-bottom-bar">
+          ${
+            isVehicle
+              ? `
+            <div class="speed-badge ${speeding ? 'speeding' : ''}">
+              <strong>${sp.value}</strong>
+              <small>${sp.unit}</small>
+            </div>
+            <div class="speed-limit-holder">
+              ${this.renderSpeedLimitSignHtml(38)}
+            </div>
+          `
+              : `<div class="speed-badge" style="border-color:var(--green);"><strong>🚶</strong></div>`
+          }
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:16px;font-weight:900;color:var(--green);">
+              ${this.formatDuration(progress.remainingSeconds)} • ${this.formatDistance(progress.remainingMeters)}
+            </div>
+            <div style="font-size:11px;color:var(--muted);">
+              ${bundle.etaLabel}: <b>${this.formatEta(progress.remainingSeconds)}</b> • ${bundle.modes[this.settings.mode]}${
+                this.isSimulating ? ' (DEMO)' : ''
+              }
+            </div>
           </div>
-          <div style="font-size:11px;color:var(--muted);">
-            ${bundle.etaLabel}: <b>${this.formatEta(progress.remainingSeconds)}</b> • ${bundle.modes[this.settings.mode]}${
-              this.isSimulating ? ' (DEMO)' : ''
-            }
-          </div>
+          <button class="round-icon-btn" id="btn-nav-voice">${this.settings.voiceEnabled ? '🔊' : '🔇'}</button>
+          <button class="round-icon-btn" id="btn-nav-recenter" title="${bundle.recenter}">🎯</button>
+          <button class="danger-btn" id="btn-stop-nav">${bundle.stopNav}</button>
         </div>
-        <button class="round-icon-btn" id="btn-nav-voice">${this.settings.voiceEnabled ? '🔊' : '🔇'}</button>
-        <button class="round-icon-btn" id="btn-nav-recenter" title="${bundle.recenter}">🎯</button>
-        <button class="danger-btn" id="btn-stop-nav">${bundle.stopNav}</button>
       </div>
     `;
+  }
+
+  private bindSignPillEvents(): void {
+    this.root.querySelectorAll<HTMLButtonElement>('[data-sign-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const s = this.roadSigns.find((item) => item.id === btn.dataset.signId);
+        if (s) this.handleSignTap(s);
+      });
+    });
   }
 
   private bindPlanningEvents(): void {
@@ -482,9 +604,21 @@ class BestGpsApp {
         this.settings.mode = mode;
         saveSettings(this.settings);
         this.renderUi();
+        void this.refreshRoadSigns(true);
         if (this.destination) void this.computeActiveRoute();
         if (this.activePoiFilter) void this.loadPois(this.activePoiFilter);
       });
+    });
+
+    this.root.querySelector('#btn-toggle-signs')?.addEventListener('click', () => {
+      this.settings.showRoadSigns = !this.settings.showRoadSigns;
+      saveSettings(this.settings);
+      if (this.settings.showRoadSigns) {
+        void this.refreshRoadSigns(true);
+      } else {
+        this.mapCtrl?.clearRoadSigns();
+      }
+      this.renderUi();
     });
 
     this.root.querySelector('#btn-open-vehicle')?.addEventListener('click', () => {
@@ -499,6 +633,8 @@ class BestGpsApp {
       this.modal = 'settings';
       this.renderModal();
     });
+
+    this.bindSignPillEvents();
 
     this.root.querySelectorAll<HTMLButtonElement>('[data-poi]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -681,6 +817,57 @@ class BestGpsApp {
     this.renderUi();
   }
 
+  private handleSignTap(sign: RoadSignItem): void {
+    const dist = Math.round(haversineMeters(this.currentFix, sign));
+    const dangerMsg = sign.isDangerForMode ? ` ⚠️ ${t(this.settings.language).truckSignDanger}` : '';
+    this.showToast(`🚸 ${sign.title} (${this.formatDistance(dist)})${dangerMsg}`);
+    this.mapCtrl?.flyTo({ lat: sign.lat, lon: sign.lon }, 15.5, 0);
+  }
+
+  private async refreshRoadSigns(force = false): Promise<void> {
+    if (!this.settings.showRoadSigns) {
+      this.mapCtrl?.clearRoadSigns();
+      return;
+    }
+    if (this.signFetchInFlight) return;
+    const now = Date.now();
+    const movedM = this.lastSignFetchFix ? haversineMeters(this.lastSignFetchFix, this.currentFix) : 9999;
+    if (!force && movedM < 320 && now - this.lastSignFetchAt < 45_000) {
+      return;
+    }
+
+    this.signFetchInFlight = true;
+    this.lastSignFetchFix = { lat: this.currentFix.lat, lon: this.currentFix.lon };
+    this.lastSignFetchAt = now;
+    try {
+      const snap = await fetchRoadSignsAround(this.currentFix.lat, this.currentFix.lon, this.settings);
+      this.currentMaxSpeedKmh = snap.currentMaxSpeedKmh;
+      this.roadSigns = snap.signs;
+      this.mapCtrl?.setRoadSigns(this.settings.showRoadSigns ? this.roadSigns : []);
+
+      // Alert once if a close dangerous sign matches the user's vehicle (e.g. low bridge or HGV ban)
+      const closeDanger = this.roadSigns.find(
+        (s) => s.isDangerForMode && haversineMeters(this.currentFix, s) < 280
+      );
+      if (closeDanger && closeDanger.id !== this.lastWarnedSignId) {
+        this.lastWarnedSignId = closeDanger.id;
+        const msg = `${closeDanger.title} — ${t(this.settings.language).truckSignDanger}`;
+        this.showToast(`⚠️ ${msg}`);
+        if (this.isNavigating) {
+          void voiceNav.speak(msg, this.settings.language, this.settings.voiceEnabled, true);
+        }
+      }
+
+      if (this.isNavigating) {
+        this.renderUi();
+      } else {
+        this.updateVehicleCockpitDom();
+      }
+    } finally {
+      this.signFetchInFlight = false;
+    }
+  }
+
   private async loadPois(kind: PoiFilterKind): Promise<void> {
     const bundle = t(this.settings.language);
     this.activePoiFilter = kind;
@@ -709,14 +896,6 @@ class BestGpsApp {
     if (simulate) {
       this.simCoordIndex = 0;
       const stepStride = Math.max(1, Math.floor(route.coordinates.length / 110));
-      const simSpeed =
-        this.settings.mode === 'pedestrian'
-          ? 5
-          : this.settings.mode === 'bicycle'
-            ? 21
-            : this.settings.mode === 'truck'
-              ? 78
-              : 95;
       if (this.simTimer !== null) window.clearInterval(this.simTimer);
       this.simTimer = window.setInterval(() => {
         if (!this.isNavigating || !this.isSimulating) return;
@@ -726,6 +905,19 @@ class BestGpsApp {
         const next = active.coordinates[Math.min(active.coordinates.length - 1, this.simCoordIndex + stepStride)];
         if (!curr) return;
         const bearing = next ? computeBearing({ lat: curr[1], lon: curr[0] }, { lat: next[1], lon: next[0] }) : 0;
+
+        let simSpeed =
+          this.settings.mode === 'pedestrian'
+            ? 5
+            : this.settings.mode === 'bicycle'
+              ? 21
+              : this.settings.mode === 'truck'
+                ? Math.min(80, this.currentMaxSpeedKmh ?? 78)
+                : Math.min(120, this.currentMaxSpeedKmh ?? 52);
+        if (this.settings.mode !== 'pedestrian') {
+          simSpeed = Math.max(12, Math.round(simSpeed + Math.sin(this.simCoordIndex * 0.4) * 3));
+        }
+
         this.handleIncomingFix({
           lat: curr[1],
           lon: curr[0],
@@ -763,19 +955,39 @@ class BestGpsApp {
 
   private handleIncomingFix(fix: GpsFix): void {
     const prev = this.currentFix;
+    const distMoved = haversineMeters(prev, fix);
+    const dtSec = (fix.timestamp - prev.timestamp) / 1000;
+
+    // Fallback delta speed if device omits coords.speed (common on some Android WebViews)
+    let resolvedSpeedKmh = fix.speedKmh;
+    if (!fix.isSimulated && resolvedSpeedKmh === 0 && dtSec >= 0.6 && dtSec <= 8 && fix.accuracyM <= 45) {
+      if (distMoved >= 2.2) {
+        const calc = Math.round((distMoved / dtSec) * 3.6);
+        if (calc > 0 && calc < 220) {
+          resolvedSpeedKmh = prev.speedKmh > 0 ? Math.round(prev.speedKmh * 0.4 + calc * 0.6) : calc;
+        }
+      }
+    }
+
     const computedHeading =
       fix.heading !== null
         ? fix.heading
-        : haversineMeters(prev, fix) > 4
+        : distMoved > 4
           ? computeBearing(prev, fix)
           : prev.heading;
 
-    this.currentFix = { ...fix, heading: computedHeading };
+    this.currentFix = { ...fix, speedKmh: resolvedSpeedKmh, heading: computedHeading };
     if (!fix.isSimulated) this.hasLiveGps = true;
 
     this.mapCtrl?.updateGpsFix(this.currentFix, this.isNavigating && this.followCamera);
+    void this.refreshRoadSigns(false);
 
-    if (!this.isNavigating) return;
+    if (!this.isNavigating) {
+      if (this.settings.mode !== 'pedestrian') {
+        this.updateVehicleCockpitDom();
+      }
+      return;
+    }
     const route = this.routes[this.selectedRouteIdx];
     if (!route) return;
 
@@ -865,6 +1077,7 @@ class BestGpsApp {
       if (!this.settings.voiceEnabled) void voiceNav.stop();
       this.renderUi();
     });
+    this.bindSignPillEvents();
   }
 
   private renderModal(): void {
@@ -979,6 +1192,7 @@ class BestGpsApp {
         saveSettings(this.settings);
         this.modal = null;
         this.renderUi();
+        void this.refreshRoadSigns(true);
         if (this.destination) void this.computeActiveRoute();
       });
     } else if (this.modal === 'saved') {
