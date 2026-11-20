@@ -42,7 +42,13 @@ import {
   VoiceStyle,
 } from './types/navigation';
 
-type ModalKind = null | 'vehicle' | 'vehicles' | 'saved' | 'settings' | 'coords' | 'radio';
+type ModalKind = null | 'vehicle' | 'vehicles' | 'saved' | 'settings' | 'coords' | 'radio' | 'osm';
+
+interface WakeLockSentinelLike {
+  released: boolean;
+  release: () => Promise<void>;
+  addEventListener?: (type: 'release', listener: () => void) => void;
+}
 
 class BestGpsApp {
   private root: HTMLElement;
@@ -87,6 +93,7 @@ class BestGpsApp {
   private lastSpokenNavInstruction = '';
   private lastRerouteAt = 0;
   private offRouteStreak = 0;
+  private wakeLock: WakeLockSentinelLike | null = null;
 
   private isListening = false;
   private handsfreeLoopActive = false;
@@ -108,6 +115,7 @@ class BestGpsApp {
     radioEngine.setBlockedStations(this.settings.blockedRadioStations);
     this.applyBodyTheme();
     this.renderShell();
+    this.setupLifecycleListeners();
     voiceNav.setSpeechDuckCallback((speaking) => {
       radioEngine.setVoiceDucking(speaking, this.isListening);
     });
@@ -116,6 +124,51 @@ class BestGpsApp {
       this.updateRadioDom();
     });
     void this.initServices();
+  }
+
+  private setupLifecycleListeners(): void {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.isNavigating) {
+        void this.acquireWakeLock();
+      }
+    });
+    const scheduleMapResize = (): void => {
+      this.mapCtrl?.resize();
+      window.setTimeout(() => this.mapCtrl?.resize(), 180);
+    };
+    window.addEventListener('resize', scheduleMapResize);
+    window.addEventListener('orientationchange', scheduleMapResize);
+  }
+
+  private async acquireWakeLock(): Promise<void> {
+    if (!this.isNavigating) return;
+    const nav = navigator as Navigator & {
+      wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinelLike> };
+    };
+    if (!nav.wakeLock || typeof nav.wakeLock.request !== 'function') return;
+    if (this.wakeLock && !this.wakeLock.released) return;
+    try {
+      const sentinel = await nav.wakeLock.request('screen');
+      this.wakeLock = sentinel;
+      sentinel.addEventListener?.('release', () => {
+        if (this.wakeLock === sentinel) {
+          this.wakeLock = null;
+        }
+      });
+    } catch {
+      // Ignore wake lock errors (e.g. battery saver or unsupported WebView)
+    }
+  }
+
+  private async releaseWakeLock(): Promise<void> {
+    const sentinel = this.wakeLock;
+    this.wakeLock = null;
+    if (!sentinel || sentinel.released) return;
+    try {
+      await sentinel.release();
+    } catch {
+      // Ignore release errors
+    }
   }
 
   private applyBodyTheme(): void {
@@ -339,14 +392,19 @@ class BestGpsApp {
       </div>
 
       <div class="bottom-dock">
-        <div class="map-fab-stack ${fabRowClass}">
-          <button class="fab-btn" id="btn-gps-center" title="${bundle.recenter}">🎯</button>
-          <button class="fab-btn" id="btn-toggle-theme" title="${bundle.themeLabel}">
-            ${this.settings.mapTheme === 'night' ? '☀️' : '🌙'}
+        <div class="map-corner-row">
+          <button type="button" class="osm-attrib-pill" id="btn-osm-attrib" title="Map data & attribution">
+            © OSM
           </button>
-          <button class="fab-btn" id="btn-toggle-voice" title="${bundle.voiceLabel}">
-            ${this.settings.voiceEnabled ? '🔊' : '🔇'}
-          </button>
+          <div class="map-fab-stack ${fabRowClass}">
+            <button class="fab-btn" id="btn-gps-center" title="${bundle.recenter}">🎯</button>
+            <button class="fab-btn" id="btn-toggle-theme" title="${bundle.themeLabel}">
+              ${this.settings.mapTheme === 'night' ? '☀️' : '🌙'}
+            </button>
+            <button class="fab-btn" id="btn-toggle-voice" title="${bundle.voiceLabel}">
+              ${this.settings.voiceEnabled ? '🔊' : '🔇'}
+            </button>
+          </div>
         </div>
         <div id="radio-mini-slot">${this.renderRadioMiniBar(bundle)}</div>
         <div id="vehicle-cockpit-slot">${this.renderVehicleCockpit(bundle)}</div>
@@ -989,6 +1047,11 @@ class BestGpsApp {
       </div>
 
       <div class="nav-bottom-dock">
+        <div class="map-corner-row nav-corner-row">
+          <button type="button" class="osm-attrib-pill" id="btn-osm-attrib" title="Map data & attribution">
+            © OSM
+          </button>
+        </div>
         ${this.renderVoiceAssistantBanner(bundle)}
         <div id="radio-mini-slot">${this.renderRadioMiniBar(bundle)}</div>
         ${isVehicle ? this.renderMiniSignsStripHtml() : ''}
@@ -1082,6 +1145,10 @@ class BestGpsApp {
   }
 
   private bindPlanningEvents(): void {
+    this.root.querySelector('#btn-osm-attrib')?.addEventListener('click', () => {
+      this.modal = 'osm';
+      this.renderModal();
+    });
     this.root.querySelector('#btn-toggle-radio')?.addEventListener('click', () => {
       this.handleRadioChipTap();
     });
@@ -1520,6 +1587,7 @@ class BestGpsApp {
     this.offRouteStreak = 0;
     this.lastSpokenStepKey = '';
     this.lastHudRenderAt = 0;
+    void this.acquireWakeLock();
 
     const bundle = t(this.settings.language);
     if (route.steps[0]) {
@@ -1601,6 +1669,7 @@ class BestGpsApp {
     this.isNavigating = false;
     this.isSimulating = false;
     this.offRouteStreak = 0;
+    void this.releaseWakeLock();
     if (this.simTimer !== null) {
       window.clearInterval(this.simTimer);
       this.simTimer = null;
@@ -1780,6 +1849,10 @@ class BestGpsApp {
   }
 
   private bindActiveNavEvents(): void {
+    this.root.querySelector('#btn-osm-attrib')?.addEventListener('click', () => {
+      this.modal = 'osm';
+      this.renderModal();
+    });
     this.root.querySelector('#btn-stop-nav')?.addEventListener('click', () => this.stopNavigation(false));
     this.root.querySelector('#btn-nav-recenter')?.addEventListener('click', () => {
       this.followCamera = true;
@@ -2341,6 +2414,44 @@ class BestGpsApp {
       `;
       const body = container.querySelector<HTMLElement>('#modal-radio-body');
       if (body) this.bindRadioModalEvents(body);
+    } else if (this.modal === 'osm') {
+      container.innerHTML = `
+        <div class="modal-backdrop" id="modal-bg">
+          <div class="modal-card osm-attrib-modal">
+            <div class="modal-header">
+              <h2>🗺️ Map Data & Attribution</h2>
+              <button class="round-icon-btn" id="modal-close">✕</button>
+            </div>
+            <div class="osm-attrib-list">
+              <div class="osm-attrib-item">
+                <strong>© OpenStreetMap contributors</strong>
+                <span>Map data is available under the Open Database License (ODbL).</span>
+                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">openstreetmap.org/copyright ↗</a>
+              </div>
+              <div class="osm-attrib-item">
+                <strong>OpenFreeMap & MapLibre GL</strong>
+                <span>Vector map tiles & rendering engine.</span>
+                <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">openfreemap.org ↗</a>
+              </div>
+              <div class="osm-attrib-item">
+                <strong>OSRM & Valhalla</strong>
+                <span>Turn-by-turn routing engines powered by OpenStreetMap road networks.</span>
+                <a href="https://project-osrm.org" target="_blank" rel="noopener noreferrer">project-osrm.org ↗</a>
+              </div>
+              <div class="osm-attrib-item">
+                <strong>Nominatim & Overpass API</strong>
+                <span>Address search, reverse geocoding, road signs & POI lookup.</span>
+                <a href="https://nominatim.org" target="_blank" rel="noopener noreferrer">nominatim.org ↗</a>
+              </div>
+            </div>
+            <button type="button" class="secondary-btn" id="btn-osm-ok">OK</button>
+          </div>
+        </div>
+      `;
+      container.querySelector('#btn-osm-ok')?.addEventListener('click', () => {
+        this.modal = null;
+        this.renderModal();
+      });
     }
 
     container.querySelector('#modal-close')?.addEventListener('click', () => {

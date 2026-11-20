@@ -150,8 +150,8 @@ select {
 .top-overlay {
   position: absolute;
   top: calc(env(safe-area-inset-top) + 10px);
-  left: 10px;
-  right: 10px;
+  left: calc(env(safe-area-inset-left) + 10px);
+  right: calc(env(safe-area-inset-right) + 10px);
   max-width: 520px;
   margin: 0 auto;
   display: flex;
@@ -400,8 +400,8 @@ select {
 /* Bottom Dock (FABs + Radio Mini Bar + Vehicle Cockpit + Route Preview / Pin Details) */
 .bottom-dock {
   position: absolute;
-  left: 10px;
-  right: 10px;
+  left: calc(env(safe-area-inset-left) + 10px);
+  right: calc(env(safe-area-inset-right) + 10px);
   bottom: calc(env(safe-area-inset-bottom) + 10px);
   max-width: 520px;
   margin: 0 auto;
@@ -543,8 +543,8 @@ select {
 .nav-top-banner {
   position: absolute;
   top: calc(env(safe-area-inset-top) + 10px);
-  left: 10px;
-  right: 10px;
+  left: calc(env(safe-area-inset-left) + 10px);
+  right: calc(env(safe-area-inset-right) + 10px);
   max-width: 520px;
   margin: 0 auto;
   background: #064e3b;
@@ -602,8 +602,8 @@ select {
 
 .nav-bottom-dock {
   position: absolute;
-  left: 10px;
-  right: 10px;
+  left: calc(env(safe-area-inset-left) + 10px);
+  right: calc(env(safe-area-inset-right) + 10px);
   bottom: calc(env(safe-area-inset-bottom) + 10px);
   max-width: 520px;
   margin: 0 auto;
@@ -774,7 +774,8 @@ select {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 10px;
+  padding: calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 10px)
+    calc(env(safe-area-inset-bottom) + 10px) calc(env(safe-area-inset-left) + 10px);
   z-index: 50;
 }
 
@@ -1401,3 +1402,215 @@ body.theme-day .vehicle-editor-box {
 .hidden {
   display: none !important;
 }
+
+/* Map Corner Row & Discrete OSM Attribution Pill */
+.map-corner-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.map-corner-row > * {
+  pointer-events: auto;
+}
+
+.nav-corner-row {
+  justify-content: flex-start;
+}
+
+.osm-attrib-pill {
+  border: 1px solid var(--border);
+  background: rgba(11, 19, 36, 0.72);
+  backdrop-filter: blur(8px);
+  color: rgba(248, 250, 252, 0.85);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  line-height: 1.2;
+}
+
+body.theme-day .osm-attrib-pill {
+  background: rgba(255, 255, 255, 0.86);
+  color: rgba(15, 23, 42, 0.85);
+}
+
+.osm-attrib-pill:active {
+  transform: scale(0.96);
+}
+
+.osm-attrib-modal {
+  max-width: 440px;
+}
+
+.osm-attrib-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.osm-attrib-item {
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.osm-attrib-item span {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.osm-attrib-item a {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+  align-self: flex-start;
+}
+
+/* Landscape Car-Mount Split-Screen Layout */
+@media (orientation: landscape) {
+  :root {
+    --car-rail-w: clamp(292px, 37vw, 336px);
+  }
+
+  #map-canvas {
+    left: var(--car-rail-w);
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: calc(100% - var(--car-rail-w));
+    height: 100%;
+  }
+
+  #ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--car-rail-w);
+    max-width: 340px;
+    background: rgba(11, 19, 36, 0.96);
+    border-right: 1px solid var(--border);
+    padding: calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px)
+      calc(env(safe-area-inset-left) + 10px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    z-index: 25;
+  }
+
+  body.theme-day #ui-layer {
+    background: rgba(248, 250, 252, 0.96);
+  }
+
+  .top-overlay,
+  .bottom-dock,
+  .nav-top-banner,
+  .nav-bottom-dock {
+    position: static;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    pointer-events: auto;
+  }
+
+  .top-overlay {
+    flex-shrink: 0;
+  }
+
+  .bottom-dock,
+  .nav-bottom-dock {
+    margin-top: auto;
+    flex-shrink: 0;
+  }
+
+  .bottom-sheet {
+    max-height: none;
+    overflow: visible;
+    padding: 10px 11px;
+    gap: 8px;
+  }
+
+  .steps-list {
+    max-height: 130px;
+  }
+
+  .nav-top-banner {
+    padding: 10px 11px;
+    gap: 9px;
+  }
+
+  .nav-arrow-box {
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+  }
+
+  .nav-dist-next {
+    font-size: 17px;
+  }
+
+  .nav-street-next {
+    font-size: 12px;
+  }
+
+  .speed-badge {
+    width: 46px;
+    height: 46px;
+  }
+
+  .speed-badge strong {
+    font-size: 15px;
+  }
+
+  .map-corner-row {
+    display: contents;
+  }
+
+  .map-fab-stack,
+  .map-fab-stack.compact-row {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 10px);
+    right: calc(env(safe-area-inset-right) + 10px);
+    flex-direction: column;
+    z-index: 30;
+  }
+
+  .osm-attrib-pill {
+    position: fixed;
+    right: calc(env(safe-area-inset-right) + 10px);
+    bottom: calc(env(safe-area-inset-bottom) + 10px);
+    z-index: 30;
+  }
+
+  .toast {
+    top: calc(env(safe-area-inset-top) + 12px);
+    left: calc(var(--car-rail-w) + (100% - var(--car-rail-w)) / 2);
+    max-width: calc(100% - var(--car-rail-w) - 90px);
+  }
+
+  .modal-backdrop {
+    align-items: center;
+  }
+
+  .modal-card {
+    max-height: 88vh;
+  }
+}
+

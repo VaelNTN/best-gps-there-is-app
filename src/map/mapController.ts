@@ -202,7 +202,11 @@ export class MapController {
       bounds.extend(route.coordinates[i]);
     }
     bounds.extend(route.coordinates[route.coordinates.length - 1]);
-    this.map.fitBounds(bounds, { padding: { top: 120, bottom: 230, left: 36, right: 64 }, maxZoom: 15, pitch: 0 });
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const padding = isLandscape
+      ? { top: 44, bottom: 44, left: 36, right: 68 }
+      : { top: 120, bottom: 230, left: 36, right: 64 };
+    this.map.fitBounds(bounds, { padding, maxZoom: 15, pitch: 0 });
   }
 
   setStartPin(pos: LatLng | null): void {
